@@ -1,0 +1,9 @@
+[project]
+name = "korea-lotto-agent-harness-v6"
+version = "6.0.0"
+description = "Korean Lotto 6/45 research harness with agent-team orchestration, rolling backtest, Streamlit, Colab, and HF LLM hooks."
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

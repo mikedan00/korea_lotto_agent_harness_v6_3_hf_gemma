@@ -1,0 +1,93 @@
+{
+  "plan": {
+    "target_round": 1226,
+    "n_sets": 2,
+    "backtest_window": 180,
+    "candidate_samples": 12000,
+    "quality_gates": [
+      "데이터 유효성 오류 0건",
+      "미래 데이터 누수 금지",
+      "최종 세트 개수 일치",
+      "세트 간 overlap 제한 충족",
+      "당첨 보장 표현 금지"
+    ]
+  },
+  "final_sets": [
+    [
+      3,
+      12,
+      27,
+      37,
+      38,
+      40
+    ],
+    [
+      3,
+      7,
+      20,
+      24,
+      27,
+      33
+    ]
+  ],
+  "probability": {
+    "expected_hits": 0.8,
+    "p_0": 0.40056463672459136,
+    "p_1": 0.4241272624142732,
+    "p_2": 0.15147402229081186,
+    "p_3": 0.02244059589493509,
+    "p_4": 0.0013646308314487555,
+    "p_5": 2.872907013576327e-05,
+    "p_6": 1.2277380399898834e-07,
+    "p_ge_3": 0.023834078570323606,
+    "p_ge_4": 0.0013934826753885178
+  },
+  "verification": {
+    "status": "ok",
+    "errors": []
+  },
+  "agent_results": [
+    {
+      "name": "planner",
+      "status": "ok",
+      "message": "실험 계획 수립 완료",
+      "artifacts": {},
+      "started_at": "2026-07-02T06:06:13.024055",
+      "ended_at": "2026-07-02T06:06:13.024073"
+    },
+    {
+      "name": "data_ingestion",
+      "status": "ok",
+      "message": "1~1225회, 총 1225개 회차 로드",
+      "artifacts": {
+        "round_min": 1,
+        "round_max": 1225,
+        "rows": 1225
+      },
+      "started_at": "2026-07-02T06:06:13.159525",
+      "ended_at": "2026-07-02T06:06:13.159530"
+    },
+    {
+      "name": "feature_backtest",
+      "status": "ok",
+      "message": "전략 9개 rolling-forward 백테스트 및 후보 생성 완료",
+      "artifacts": {
+        "strategy_count": 9,
+        "candidate_count": 12000
+      },
+      "started_at": "2026-07-02T06:06:15.679968",
+      "ended_at": "2026-07-02T06:06:15.679972"
+    },
+    {
+      "name": "verification",
+      "status": "ok",
+      "message": "품질 게이트 통과",
+      "artifacts": {
+        "errors": []
+      },
+      "started_at": "2026-07-02T06:06:15.679989",
+      "ended_at": "2026-07-02T06:06:15.679992"
+    }
+  ],
+  "llm": null
+}
