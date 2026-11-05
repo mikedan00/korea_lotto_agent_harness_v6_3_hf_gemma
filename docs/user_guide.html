@@ -276,8 +276,8 @@ python cli.py --llm --provider claude_cli --claude-model sonnet</code></pre></di
       <div class="tablewrap"><table>
         <thead><tr><th>탭</th><th>내용</th></tr></thead>
         <tbody>
-          <tr><td>최종 결과</td><td>최종 세트, holdout edge · 평균 적중 · p-value · 감사 판정, 에이전트 실행 로그</td></tr>
-          <tr><td>최적화·감사</td><td>통계 감사 경고, 전략별 가중치 그래프, 최적화 상세, 학습된 필터 범위</td></tr>
+          <tr><td>최종 결과</td><td>최종 세트, holdout edge · 평균 적중 · 적중 p(단측/양측) · 감사 판정과 95% 신뢰구간, 최종 세트 상세(점수 성분 분해), 에이전트 실행 로그</td></tr>
+          <tr><td>최적화·감사</td><td>통계 감사 경고, holdout 검증표(최적화 앙상블 vs 균등 가중치 기준선), 전략별 가중치 그래프, 최적화 상세, 학습된 필터 범위</td></tr>
           <tr><td>AI 리뷰</td><td>분석가 리포트, 비평가 판정, 최적화 자문, 적용 가능한 제안, Claude CLI 비용</td></tr>
           <tr><td>백테스트</td><td>전략별 요약표, 전략별 30회 이동평균 적중 그래프</td></tr>
           <tr><td>데이터/후보</td><td>번호별 전략 점수와 확률, 상위 200개 후보 조합</td></tr>
@@ -361,22 +361,23 @@ python cli.py --llm --provider hf_api --hf-model "Qwen/Qwen3.5-9B:together"</cod
         <div class="metrics">
           <div class="metric"><div class="k">holdout edge</div><div class="v bad">−0.0486</div></div>
           <div class="metric"><div class="k">holdout 평균 적중</div><div class="v bad">0.600</div></div>
-          <div class="metric"><div class="k">앙상블 p-value</div><div class="v">0.873</div></div>
+          <div class="metric"><div class="k">holdout 적중 p (단측/양측)</div><div class="v">0.971 / 0.058</div></div>
           <div class="metric"><div class="k">감사 판정</div><div class="v"><span class="pill bad">no_evidence_of_edge</span></div></div>
         </div>
         <div class="legend">
           <span><i class="b1"></i>1–10</span><span><i class="b2"></i>11–20</span><span><i class="b3"></i>21–30</span><span><i class="b4"></i>31–40</span><span><i class="b5"></i>41–45</span>
         </div>
       </div>
-      <p>무작위 기대 적중이 0.8개인데 0.600개이므로, 이 결과는 무작위보다 낫다는 근거가 없습니다. 공정한 추첨에서 예상되는 결과입니다.</p>
+      <p>무작위 기대 적중이 0.8개인데 0.600개이므로, 이 결과는 무작위보다 낫다는 근거가 없습니다. holdout edge의 95% 신뢰구간도 −0.0767 ~ −0.0194로 0보다 작습니다. 같은 구간에서 균등 가중치 기준선(edge −0.0168, 평균 적중 0.818)보다도 유의하게 나빴습니다. 공정한 추첨에서 예상되는 결과입니다.</p>
 
       <h3>핵심 지표</h3>
       <div class="tablewrap"><table>
         <thead><tr><th>지표</th><th>의미</th><th>보는 법</th></tr></thead>
         <tbody>
-          <tr><td>holdout edge (nats)</td><td>검증 구간에서 앙상블 확률의 로그우도 − 균등 분포 로그우도</td><td>0보다 크면 무작위보다 나음, 0 이하면 우위 없음</td></tr>
-          <tr><td>holdout 평균 적중</td><td>검증 구간에서 상위 6개 번호가 실제 당첨번호와 맞은 평균 개수</td><td>무작위 기대값은 0.8개</td></tr>
-          <tr><td>앙상블 p-value</td><td>평균 적중이 우연히 0.8보다 클 확률</td><td>0.05 미만이어야 의미 있는 차이</td></tr>
+          <tr><td>holdout edge (nats)</td><td>튜닝에 쓰지 않은 검증 구간에서 앙상블 확률의 로그우도 − 균등 분포 로그우도 (95% 신뢰구간 포함)</td><td>신뢰구간 하한이 0보다 커야 우위가 확인된 것</td></tr>
+          <tr><td>holdout 평균 적중</td><td>검증 구간에서 상위 6개 번호가 실제 당첨번호와 맞은 평균 개수 (95% 신뢰구간 포함)</td><td>무작위 기대값은 0.8개</td></tr>
+          <tr><td>holdout 적중 p (단측/양측)</td><td>단측: 0.8보다 큰지, 양측: 0.8과 다른지. 검증 구간만 사용</td><td>단측 p가 0.05 미만이어야 무작위보다 낫다는 근거</td></tr>
+          <tr><td>균등 가중치 기준선</td><td>14개 전략을 같은 비중으로 쓴 앙상블을 같은 검증 구간에서 평가한 값</td><td>최적화 앙상블과의 차이 신뢰구간이 0을 포함하지 않아야 최적화가 의미 있음</td></tr>
           <tr><td>shrunk_to_uniform</td><td>검증 실패로 신호를 약하게 만들었는지</td><td><code>True</code>면 사실상 무작위 선택에 가까움</td></tr>
         </tbody>
       </table></div>
@@ -385,7 +386,7 @@ python cli.py --llm --provider hf_api --hf-model "Qwen/Qwen3.5-9B:together"</cod
       <div class="tablewrap"><table>
         <thead><tr><th>판정</th><th>조건</th></tr></thead>
         <tbody>
-          <tr><td><span class="pill ok">signal</span></td><td>holdout edge &gt; 0, 앙상블 p ≤ 0.05, 다중비교 보정 후에도 유의한 전략이 있음</td></tr>
+          <tr><td><span class="pill ok">signal</span></td><td>holdout edge 95% 신뢰구간 하한 &gt; 0, holdout 적중 단측 p ≤ 0.05, 다중비교 보정 후에도 유의한 전략이 있음</td></tr>
           <tr><td><span class="pill mid">weak_signal</span></td><td>holdout edge &gt; 0 이지만 통계적으로 확인되지 않음</td></tr>
           <tr><td><span class="pill bad">no_evidence_of_edge</span></td><td>holdout edge ≤ 0 — 무작위 대비 우위 근거 없음</td></tr>
         </tbody>
@@ -399,9 +400,13 @@ python cli.py --llm --provider hf_api --hf-model "Qwen/Qwen3.5-9B:together"</cod
           <tr><td><code>hits_vs_random</code></td><td><code>mean_hits − 0.8</code></td></tr>
           <tr><td><code>ll_edge</code></td><td>전략 하나만 썼을 때의 로그우도 edge (음수면 균등보다 나쁨)</td></tr>
           <tr><td><code>z_score</code>, <code>p_value</code></td><td>무작위 대비 단측 검정</td></tr>
+          <tr><td><code>p_two_sided</code></td><td>무작위 대비 양측 검정</td></tr>
           <tr><td><code>p_bonferroni</code></td><td>14개 전략 다중비교 보정 p-value</td></tr>
         </tbody>
       </table></div>
+
+      <h3>후보 점수 성분</h3>
+      <p><code>score = c_prob + c_pair + c_typical + c_prime</code>입니다. 각 성분은 점수 가중치 × 후보 집합 안에서 표준화한 z-score이고, 네 값을 더하면 <code>score</code>와 정확히 같습니다. 최종 세트 상세 표의 <code>score_rank</code>는 전체 후보 중 점수 순위입니다. 커버리지 보너스 때문에 두 번째 이후 세트는 순위가 낮을 수 있습니다.</p>
 
       <h3>후보 조합 구조 지표</h3>
       <p><code>sum</code> 합계 · <code>odd</code> 홀수 개수 · <code>high</code> 23 이상 개수 · <code>consecutive_pairs</code> 연속번호 쌍 · <code>last_overlap</code> 직전 회차와 겹친 수 · <code>ac</code> AC값(서로 다른 차이 개수 − 5) · <code>zones_used</code> 사용한 번호대 수 · <code>max_same_last_digit</code> 같은 끝수 최대 개수 · <code>prime_count</code> 소수 개수</p>

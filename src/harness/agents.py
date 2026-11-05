@@ -57,7 +57,7 @@ class FeatureBacktestAgent:
         summary = result["backtest_summary"]
         opt = result["optimization"]
         msg = (f"전략 {len(summary)}개 walk-forward 백테스트 + 앙상블 최적화 완료 "
-               f"(holdout edge {opt['holdout_edge_nats']:+.4f} nats, 수축={opt['shrunk_to_uniform']})")
+               f"(holdout edge {opt['holdout'].get('edge_nats', opt['holdout_edge_nats']):+.4f} nats, 수축={opt['shrunk_to_uniform']})")
         ctx.log(f"FeatureBacktestAgent: {msg}")
         return AgentResult(self.name, "ok", msg, {"strategy_count": len(summary), "candidate_count": len(result["candidates"])}).finish()
 

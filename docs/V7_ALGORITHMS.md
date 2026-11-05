@@ -30,7 +30,10 @@
 - 목적함수: `mean_t Σ_{n∈Y_t} log q_n − 6·log(1/45)` (nats, 균등 대비 edge) − `λ‖w − 1/K‖²`
 - 탐색: 균등/원-핫/Dirichlet(0.6) 300개 × β 격자 → 가우시안 섭동 hill-climb 200회
 - 검증: 앞 70% fold 로 탐색, 뒤 30% fold(holdout) 로 평가. holdout edge ≤ 0 이면 β×0.25 수축 + 후보 점수의 확률 성분 0.5배
-- 유의성: 전략별 top-6 평균적중 vs 0.8, 분산 0.6145/F 의 z-검정(단측), Bonferroni ×K
+- 유의성: 전략별 top-6 평균적중 vs 0.8, 분산 0.6145/F 의 z-검정(단측 + 양측), Bonferroni ×K(단측 기준)
+- holdout 평가(`holdout_evaluation`): holdout fold 만으로 튜닝 가중치·수축 전 β 의 edge, 평균 적중, 적중 z-검정(단측/양측),
+  fold 단위 부트스트랩(2,000회) 95% CI, 같은 fold 에서 균등 가중치 기준선과의 짝지은 차이와 그 CI 를 계산.
+  감사 판정은 이 holdout 값만 사용합니다 (`ensemble_*_all_folds` 는 튜닝 fold 가 섞인 참고값).
 
 한계(AI 비평가 지적 반영): holdout 은 수축 여부 결정에도 쓰이므로 완전한 외표본은 아닙니다.
 더 엄격한 검증이 필요하면 `backtest_window` 를 늘리고 마지막 구간을 별도로 남겨두는 실험을 권장합니다.
@@ -40,6 +43,7 @@
 1. 샘플링 분포 `softmax(τ · ensemble_z)` 에서 Gumbel top-k 로 `samples×4` 조합 생성 → 중복 제거
 2. 학습형 필터: 과거 당첨조합 지표의 2.5%~97.5% 구간 (coverage 조절 가능), 결합 통과율을 진단값으로 기록
 3. 점수 = `prob·z(Σlog q) + pair·z(Σ log pair lift) + typical·z(−mean|z_metric|) + prime·z(소인수 전형성)`
+   - 성분 기여도 `c_prob, c_pair, c_typical, c_prime` 을 후보표에 저장 (합 = score). 최종 세트는 `final_set_details` 에 점수 순위·성분·구조 지표와 함께 기록
 4. 세트 선택: 상위 400개 중 `score + coverage_weight × 신규번호수` greedy, overlap ≤ max_overlap
 
 ## 4. 리뷰 계층 (src/harness/review.py)

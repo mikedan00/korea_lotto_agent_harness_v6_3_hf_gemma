@@ -53,12 +53,23 @@ def main():
     print(f"\n[{cfg.target_round}회 후보 {cfg.n_sets}세트]")
     for i, s in enumerate(result.get("final_sets", []), 1):
         print(f"Set {i}: {', '.join(map(str, s))}")
-    if opt:
-        print(f"\n[최적화] holdout edge={opt['holdout_edge_nats']:+.4f} nats | holdout 평균적중={opt['holdout_mean_hits']:.3f}"
-              f" (무작위 0.800) | 수축={opt['shrunk_to_uniform']}")
+    ho = opt.get("holdout") or {}
+    if ho.get("holdout_folds"):
+        b = ho["baseline_equal_weights"]
+        print(f"\n[holdout 검증] {ho['holdout_folds']}회차 ({ho['holdout_rounds'][0]}~{ho['holdout_rounds'][1]}회), 튜닝 미사용")
+        print(f"  앙상블   edge={ho['edge_nats']:+.4f} (95% CI {ho['edge_ci95'][0]:+.4f}~{ho['edge_ci95'][1]:+.4f}) | "
+              f"평균적중={ho['mean_hits']:.3f} (95% CI {ho['mean_hits_ci95'][0]:.2f}~{ho['mean_hits_ci95'][1]:.2f}, 무작위 0.800) | "
+              f"p 단측={ho['hits_p_one_sided']:.3f} 양측={ho['hits_p_two_sided']:.3f}")
+        print(f"  균등가중 edge={b['edge_nats']:+.4f} (95% CI {b['edge_ci95'][0]:+.4f}~{b['edge_ci95'][1]:+.4f}) | 평균적중={b['mean_hits']:.3f}")
+        d = ho["ensemble_minus_equal_edge_ci95"]
+        print(f"  앙상블−균등 edge 차이={ho['ensemble_minus_equal_edge']:+.4f} (95% CI {d[0]:+.4f}~{d[1]:+.4f}) | 수축={opt['shrunk_to_uniform']}")
+    fsd = result.get("final_set_details")
+    if fsd is not None and len(fsd):
+        print("\n[최종 세트 상세] score = c_prob + c_pair + c_typical + c_prime")
+        print(fsd[["set", "score_rank", "numbers", "score", "c_prob", "c_pair", "c_typical", "c_prime", "sum", "odd", "high", "ac", "zones_used"]].round(3).to_string(index=False))
     audit = ctx.artifacts.get("audit")
     if audit:
-        print(f"[통계 감사] verdict={audit['verdict']}")
+        print(f"\n[통계 감사] verdict={audit['verdict']}")
         for f in audit["risk_flags"]:
             print(f"  - {f}")
     llm = ctx.artifacts.get("llm")

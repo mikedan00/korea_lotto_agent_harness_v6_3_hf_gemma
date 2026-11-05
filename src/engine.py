@@ -17,6 +17,7 @@ from .optimizer import (
     ensemble_logits,
     ensemble_probabilities,
     hits_significance,
+    holdout_evaluation,
     optimize_ensemble,
     strategy_report,
     top6_hits,
@@ -197,12 +198,20 @@ def generate_candidates(draws: list[Draw], probs: dict[int, float], ens_z: dict[
 
     w = cfg.score_weights
     # prob_scale<1: holdout 에서 우위가 검증되지 않아 수축된 경우 확률 성분 비중도 함께 낮춤
-    score = (prob_scale * w["prob"] * _zscore(logq) + w["pair"] * _zscore(pair_score)
-             + w["typical"] * _zscore(typical) + w["prime"] * _zscore(prime_struct))
+    # 성분별 기여도 = 가중치 × 후보 집합 내 z-score. 네 성분의 합이 score 와 정확히 같다.
+    c_prob = prob_scale * w["prob"] * _zscore(logq)
+    c_pair = w["pair"] * _zscore(pair_score)
+    c_typical = w["typical"] * _zscore(typical)
+    c_prime = w["prime"] * _zscore(prime_struct)
+    score = c_prob + c_pair + c_typical + c_prime
 
     df = pd.DataFrame({
         "numbers": [", ".join(map(str, r)) for r in combos],
         "score": score,
+        "c_prob": c_prob,
+        "c_pair": c_pair,
+        "c_typical": c_typical,
+        "c_prime": c_prime,
         "log_prob": logq,
         "log_prob_vs_uniform": logq - 6 * np.log(1 / 45),
         "pair_score": pair_score,
@@ -211,6 +220,16 @@ def generate_candidates(draws: list[Draw], probs: dict[int, float], ens_z: dict[
         **{k: met[k].astype(int) for k in STRUCT_METRICS},
     })
     return df.sort_values("score", ascending=False).reset_index(drop=True)
+
+
+def final_set_table(candidate_df: pd.DataFrame, final_sets: list[list[int]]) -> pd.DataFrame:
+    """최종 세트별 점수 순위·성분 기여도·구조 지표."""
+    key = {", ".join(map(str, s)): i for i, s in enumerate(final_sets, 1)}
+    rows = candidate_df.reset_index(drop=True)
+    out = rows[rows["numbers"].isin(key)].copy()
+    out.insert(0, "score_rank", out.index + 1)
+    out.insert(0, "set", out["numbers"].map(key))
+    return out.sort_values("set").reset_index(drop=True)
 
 
 def select_final_sets(candidate_df: pd.DataFrame, n_sets: int = 2, max_overlap: int = 2,
@@ -278,6 +297,8 @@ def run_core_pipeline(draws: list[Draw], cfg: AppConfig, progress=None) -> dict[
     filters = learn_filters(draws, cfg.filter_coverage)
     candidate_df = generate_candidates(draws, probs, ens_z, cfg, filters, prob_scale=0.5 if fit.shrunk else 1.0)
     final_sets = select_final_sets(candidate_df, cfg.n_sets, cfg.max_overlap, cfg.coverage_weight)
+    final_set_details = final_set_table(candidate_df, final_sets)
+    holdout = holdout_evaluation(cache, fit, cfg.tune_ratio, seed=cfg.seed) if len(cache.rounds) >= 2 else {"holdout_folds": 0}
 
     optimization = {
         "weights": fit.weights,
@@ -288,10 +309,14 @@ def run_core_pipeline(draws: list[Draw], cfg: AppConfig, progress=None) -> dict[
         "holdout_edge_nats": fit.holdout_edge,
         "holdout_mean_hits": fit.holdout_hits,
         "random_expected_hits": EXPECTED_HITS,
+        # 아래 3개는 튜닝 fold 가 섞인 전체 fold 기준(참고용). 판단은 holdout 블록을 사용.
         "ensemble_mean_hits_all_folds": float(ens_hits.mean()) if len(ens_hits) else 0.0,
         "ensemble_hits_z": ens_sig["z"],
         "ensemble_hits_p_value": ens_sig["p_value"],
+        "holdout": holdout,
+        "beta_tuned": fit.tuned_beta,
         "shrunk_to_uniform": fit.shrunk,
+        "log_prob_basis": "후보의 log_prob 는 최종(수축 후) beta 로 계산한 앙상블 확률 기준",
         "history": fit.history,
     }
     return {
@@ -302,6 +327,7 @@ def run_core_pipeline(draws: list[Draw], cfg: AppConfig, progress=None) -> dict[
         "number_scores": score_df.sort_values("ensemble_z", ascending=False),
         "candidates": candidate_df,
         "final_sets": final_sets,
+        "final_set_details": final_set_details,
         "filters": filters,
         "optimization": optimization,
         "probability": exact_probability_summary(),
@@ -333,6 +359,7 @@ def save_pipeline_outputs(result: dict[str, Any], output_dir: str | Path) -> dic
     cands = result.get("candidates")
     serial = {
         "final_sets": result.get("final_sets", []),
+        "final_set_details": result["final_set_details"].to_dict(orient="records") if isinstance(result.get("final_set_details"), pd.DataFrame) else [],
         "optimization": result.get("optimization", {}),
         "filters": result.get("filters", {}),
         "probability": result.get("probability", {}),

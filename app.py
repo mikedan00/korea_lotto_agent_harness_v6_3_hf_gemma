@@ -190,11 +190,22 @@ with tabs[0]:
     for i, nums in enumerate(sets):
         with cols[i]:
             st.metric(f"Set {i+1}", " · ".join(map(str, nums)))
+    ho = opt.get("holdout") or {}
+    eci = ho.get("edge_ci95") or (0, 0)
+    hci = ho.get("mean_hits_ci95") or (0, 0)
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("holdout edge (nats)", f"{opt.get('holdout_edge_nats', 0):+.4f}")
-    m2.metric("holdout 평균 적중", f"{opt.get('holdout_mean_hits', 0):.3f}", f"{opt.get('holdout_mean_hits', 0) - 0.8:+.3f} vs 무작위")
-    m3.metric("앙상블 적중 p-value", f"{opt.get('ensemble_hits_p_value', 1):.3f}")
+    m1.metric("holdout edge (nats)", f"{ho.get('edge_nats', 0):+.4f}")
+    m2.metric("holdout 평균 적중 (무작위 0.8)", f"{ho.get('mean_hits', 0):.3f}")
+    m3.metric("holdout 적중 p (단측/양측)", f"{ho.get('hits_p_one_sided', 1):.3f} / {ho.get('hits_p_two_sided', 1):.3f}")
     m4.metric("감사 판정", audit.get("verdict", "-"))
+    st.caption(f"holdout = 튜닝에 쓰지 않은 {ho.get('holdout_folds', 0)}개 회차"
+               + (f" ({ho['holdout_rounds'][0]}~{ho['holdout_rounds'][1]}회)" if ho.get("holdout_rounds") else "")
+               + f" · edge 95% CI {eci[0]:+.4f} ~ {eci[1]:+.4f} · 평균 적중 95% CI {hci[0]:.2f} ~ {hci[1]:.2f} (부트스트랩)")
+    fsd = result.get("final_set_details")
+    if isinstance(fsd, pd.DataFrame) and not fsd.empty:
+        st.subheader("최종 세트 상세 (점수 성분 분해 · 구조 지표)")
+        st.caption("score = c_prob + c_pair + c_typical + c_prime (각 성분 = 가중치 × 후보 집합 내 z-score). score_rank 는 전체 후보 중 점수 순위")
+        st.dataframe(fsd, width="stretch")
     st.warning("공정추첨에서 모든 6개 조합의 1등 확률은 1/8,145,060 로 동일합니다. "
                "본 결과는 통계 연구용 후보이며, 감사 판정이 무작위 대비 우위를 보여주지 못하면 신호는 자동 수축됩니다.")
     st.subheader("에이전트 실행 로그")
@@ -205,6 +216,19 @@ with tabs[1]:
     for f in audit.get("risk_flags", []):
         st.write("⚠️", f)
     st.json({k: v for k, v in audit.items() if k != "risk_flags"})
+    ho = opt.get("holdout") or {}
+    if ho.get("holdout_folds"):
+        st.subheader("holdout 검증 (튜닝 미사용 구간)")
+        base = ho.get("baseline_equal_weights", {})
+        st.dataframe(pd.DataFrame([
+            {"모델": "최적화 앙상블", "edge (nats)": ho["edge_nats"], "edge 95% CI": f"{ho['edge_ci95'][0]:+.4f} ~ {ho['edge_ci95'][1]:+.4f}",
+             "평균 적중": ho["mean_hits"], "적중 p(양측)": ho["hits_p_two_sided"]},
+            {"모델": "균등 가중치 기준선", "edge (nats)": base.get("edge_nats"), "edge 95% CI": f"{base['edge_ci95'][0]:+.4f} ~ {base['edge_ci95'][1]:+.4f}",
+             "평균 적중": base.get("mean_hits"), "적중 p(양측)": base.get("hits_p_two_sided")},
+        ]), width="stretch")
+        d = ho["ensemble_minus_equal_edge_ci95"]
+        st.caption(f"앙상블 − 기준선 edge 차이 {ho['ensemble_minus_equal_edge']:+.4f} (95% CI {d[0]:+.4f}~{d[1]:+.4f}) · "
+                   f"적중 차이 {ho['ensemble_minus_equal_hits']:+.3f} · 부트스트랩 2,000회, fold 단위 짝지은 재표본")
     st.subheader("앙상블 가중치")
     w = result.get("weights")
     if isinstance(w, pd.DataFrame):
