@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
@@ -42,6 +42,23 @@ class AppConfig:
     sum_max: int = 177
     output_dir: str = "outputs"
 
+    # v7.0 최적화/후보 생성
+    optimize: bool = True
+    tune_ratio: float = 0.7
+    opt_random: int = 300
+    opt_refine: int = 200
+    use_learned_filters: bool = True
+    filter_coverage: float = 0.95
+    explore_temperature: float = 0.35
+    coverage_weight: float = 0.3
+    score_weights: dict = field(default_factory=lambda: {"prob": 1.0, "pair": 0.25, "typical": 0.35, "prime": 0.15})
+
+    # LLM 공급자: hf_api | claude_cli | none
+    llm_provider: str = "hf_api"
+    claude_model: str = "sonnet"
+    claude_cli_path: str = "claude"
+    claude_timeout: int = 240
+
     llm_engine: str = "hf_api"
     hf_token: str = ""
     hf_router_model: str = "google/gemma-4-26B-A4B-it:deepinfra"
@@ -55,6 +72,10 @@ class AppConfig:
     @classmethod
     def from_env(cls, **overrides: Any) -> "AppConfig":
         cfg = cls(
+            llm_provider=get_setting("LLM_PROVIDER", get_setting("LLM_ENGINE", "hf_api")),
+            claude_model=get_setting("CLAUDE_MODEL", "sonnet"),
+            claude_cli_path=get_setting("CLAUDE_CLI_PATH", "claude"),
+            claude_timeout=int(float(get_setting("CLAUDE_TIMEOUT", "240"))),
             llm_engine=get_setting("LLM_ENGINE", "hf_api"),
             hf_token=get_setting("HF_TOKEN", ""),
             hf_router_model=get_setting("HF_ROUTER_MODEL", get_setting("HF_MODEL_ID", "google/gemma-4-26B-A4B-it:deepinfra")),

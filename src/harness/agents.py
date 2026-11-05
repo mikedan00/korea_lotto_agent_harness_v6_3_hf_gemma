@@ -7,7 +7,8 @@ from typing import Any
 from .base import AgentResult, HarnessContext
 from ..data_loader import load_history, validate_draws
 from ..engine import run_core_pipeline, save_pipeline_outputs
-from ..llm_engine import analyze_with_llm
+from ..llm_engine import get_llm_client
+from .review import run_review_board, statistical_audit
 
 
 class PlannerAgent:
@@ -20,8 +21,11 @@ class PlannerAgent:
             "n_sets": ctx.cfg.n_sets,
             "backtest_window": ctx.cfg.backtest_window,
             "candidate_samples": ctx.cfg.candidate_samples,
+            "optimize": ctx.cfg.optimize,
+            "llm_provider": ctx.cfg.llm_provider,
             "quality_gates": [
                 "데이터 유효성 오류 0건",
+                "holdout 구간으로 앙상블 과적합 검증",
                 "미래 데이터 누수 금지",
                 "최종 세트 개수 일치",
                 "세트 간 overlap 제한 충족",
@@ -48,10 +52,12 @@ class FeatureBacktestAgent:
     role = "전략 구현/백테스트 에이전트"
     def run(self, ctx: HarnessContext) -> AgentResult:
         draws = ctx.data["draws"]
-        result = run_core_pipeline(draws, ctx.cfg)
+        result = run_core_pipeline(draws, ctx.cfg, progress=ctx.progress)
         ctx.artifacts["pipeline"] = result
         summary = result["backtest_summary"]
-        msg = f"전략 {len(summary)}개 rolling-forward 백테스트 및 후보 생성 완료"
+        opt = result["optimization"]
+        msg = (f"전략 {len(summary)}개 walk-forward 백테스트 + 앙상블 최적화 완료 "
+               f"(holdout edge {opt['holdout_edge_nats']:+.4f} nats, 수축={opt['shrunk_to_uniform']})")
         ctx.log(f"FeatureBacktestAgent: {msg}")
         return AgentResult(self.name, "ok", msg, {"strategy_count": len(summary), "candidate_count": len(result["candidates"])}).finish()
 
@@ -79,25 +85,42 @@ class VerificationAgent:
         return AgentResult(self.name, status, msg, {"errors": errors}).finish()
 
 
-class LlmAnalystAgent:
-    name = "llm_analyst"
-    role = "LLM 리포트/비판 에이전트"
+class StatisticalAuditAgent:
+    name = "statistical_audit"
+    role = "결정론적 통계 감사 에이전트 (LLM 불필요)"
     def run(self, ctx: HarnessContext) -> AgentResult:
-        result = ctx.artifacts.get("pipeline", {})
-        summary = {
-            "target_round": ctx.cfg.target_round,
-            "final_sets": result.get("final_sets", []),
-            "probability": result.get("probability", {}),
-            "backtest_summary": result.get("backtest_summary").head(10).to_dict(orient="records") if result.get("backtest_summary") is not None else [],
-            "top_candidates": result.get("candidates").head(10).to_dict(orient="records") if result.get("candidates") is not None else [],
-        }
-        if not ctx.cfg.hf_token:
-            msg = "HF_TOKEN 미설정: LLM 분석 생략"
+        audit = statistical_audit(ctx.artifacts["pipeline"], ctx.cfg)
+        ctx.artifacts["audit"] = audit
+        msg = f"판정={audit['verdict']}, 리스크 {len(audit['risk_flags'])}건"
+        ctx.log(f"StatisticalAuditAgent: {msg}")
+        return AgentResult(self.name, "ok", msg, {"verdict": audit["verdict"]}).finish()
+
+
+class AiReviewBoardAgent:
+    """선택한 LLM(HF Router 또는 Claude Code CLI)으로 분석가 → 비평가 → 최적화 자문 3단계 리뷰."""
+    name = "ai_review_board"
+    role = "AI 리뷰 보드 (분석/비평/최적화 자문)"
+    def run(self, ctx: HarnessContext) -> AgentResult:
+        client = get_llm_client(ctx.cfg)
+        if client is None:
+            ctx.artifacts["llm"] = {"ok": False, "error": "LLM 공급자 none"}
+            return AgentResult(self.name, "skipped", "LLM 공급자 none: AI 리뷰 생략").finish()
+        if not client.available():
+            msg = ("HF_TOKEN 미설정" if client.provider == "hf_api" else "Claude Code CLI 미설치/PATH 없음") + ": AI 리뷰 생략"
             ctx.artifacts["llm"] = {"ok": False, "error": msg}
             return AgentResult(self.name, "skipped", msg).finish()
-        llm = analyze_with_llm(ctx.cfg, summary)
-        ctx.artifacts["llm"] = llm
-        return AgentResult(self.name, "ok" if llm.get("ok") else "warning", "LLM 분석 완료" if llm.get("ok") else str(llm.get("error"))).finish()
+        board = run_review_board(client, ctx.artifacts["pipeline"], ctx.cfg, ctx.artifacts.get("audit", {}), progress=ctx.progress)
+        ctx.artifacts["llm"] = board
+        if not board.get("ok"):
+            return AgentResult(self.name, "warning", str(board.get("error"))).finish()
+        verdict = (board.get("critic") or {}).get("verdict", "n/a")
+        msg = f"{board['provider']}:{board['model']} 리뷰 완료 (비평 verdict={verdict}, 제안 {len(board.get('suggestions', {}))}건)"
+        ctx.log(f"AiReviewBoardAgent: {msg}")
+        return AgentResult(self.name, "ok", msg).finish()
+
+
+# v6 호환 이름
+LlmAnalystAgent = AiReviewBoardAgent
 
 
 class ReportAgent:
@@ -111,11 +134,13 @@ class ReportAgent:
             "final_sets": result.get("final_sets"),
             "probability": result.get("probability"),
             "verification": ctx.artifacts.get("verification"),
+            "optimization": result.get("optimization"),
+            "audit": ctx.artifacts.get("audit"),
             "agent_results": [a.__dict__ for a in ctx.agent_results],
             "llm": ctx.artifacts.get("llm"),
         }
         p = Path(ctx.cfg.output_dir) / "harness_report.json"
-        p.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        p.write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
         paths["harness_report"] = str(p)
         ctx.artifacts["paths"] = paths
         ctx.log("ReportAgent: artifacts saved")

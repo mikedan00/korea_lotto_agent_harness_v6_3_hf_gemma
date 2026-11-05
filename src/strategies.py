@@ -336,6 +336,125 @@ def prime_combo_structural_score(
     return float(score / max(1, len(ref)))
 
 
+# -----------------------------------------------------------------------------
+# v7.0 추가 전략 (모두 train 구간 draws만 사용 → 미래 누수 없음)
+# -----------------------------------------------------------------------------
+
+
+class MarkovTransitionStrategy(BaseStrategy):
+    name = "markov_transition"
+    explanation = "직전 회차 번호 m → 다음 회차 번호 n 전이확률 P(n|m) (Laplace 평활)"
+
+    def __init__(self, alpha: float = 1.0):
+        self.alpha = alpha
+
+    def score(self, draws: list[Draw]) -> StrategyOutput:
+        trans = np.zeros((46, 46), dtype=float)
+        occ = np.zeros(46, dtype=float)
+        for prev, nxt in zip(draws, draws[1:]):
+            for m in prev.numbers:
+                occ[m] += 1
+                for n in nxt.numbers:
+                    trans[m, n] += 1
+        base = 6 / 45
+        last = draws[-1].numbers
+        scores = {}
+        for n in range(1, 46):
+            # 직전 회차 각 번호 m에 대한 전이확률의 기저확률 대비 lift 평균
+            lifts = [((trans[m, n] + self.alpha * base) / (occ[m] + self.alpha)) / base for m in last]
+            scores[n] = float(np.mean(lifts))
+        return StrategyOutput(self.name, _z(scores), self.explanation)
+
+
+class MultiScaleFrequencyStrategy(BaseStrategy):
+    name = "multi_scale_freq"
+    explanation = "10/25/50/100회 다중 윈도우 Dirichlet 평활 빈도 평균"
+
+    def __init__(self, windows: tuple[int, ...] = (10, 25, 50, 100), prior: float = 5.0):
+        self.windows = windows
+        self.prior = prior
+
+    def score(self, draws: list[Draw]) -> StrategyOutput:
+        acc = {n: 0.0 for n in range(1, 46)}
+        for w in self.windows:
+            recent = draws[-w:]
+            c = Counter(n for d in recent for n in d.numbers)
+            # prior 회차 상당의 균등 prior로 수축
+            z = _z({n: (c[n] + self.prior * 6 / 45) / (len(recent) + self.prior) for n in range(1, 46)})
+            for n in range(1, 46):
+                acc[n] += z[n] / len(self.windows)
+        return StrategyOutput(self.name, _z(acc), self.explanation)
+
+
+class LastDigitStrategy(BaseStrategy):
+    name = "last_digit"
+    explanation = "끝수(0~9) 최근 50회 출현 비율 대비 기대치 lift를 같은 끝수 번호에 배분"
+
+    def __init__(self, window: int = 50):
+        self.window = window
+
+    def score(self, draws: list[Draw]) -> StrategyOutput:
+        recent = draws[-self.window:]
+        c = Counter(n % 10 for d in recent for n in d.numbers)
+        size = Counter(n % 10 for n in range(1, 46))
+        total = 6 * len(recent)
+        scores = {n: (c[n % 10] + 1) / (total * size[n % 10] / 45 + 1) for n in range(1, 46)}
+        return StrategyOutput(self.name, _z(scores), self.explanation)
+
+
+ZONES = [(1, 9), (10, 19), (20, 29), (30, 39), (40, 45)]
+
+
+def zone_of(n: int) -> int:
+    for i, (lo, hi) in enumerate(ZONES):
+        if lo <= n <= hi:
+            return i
+    raise ValueError(n)
+
+
+class ZoneBalanceStrategy(BaseStrategy):
+    name = "zone_balance"
+    explanation = "번호대(1-9/10대/20대/30대/40대) 최근 30회 과소출현 구간 평균회귀 보정"
+
+    def __init__(self, window: int = 30):
+        self.window = window
+
+    def score(self, draws: list[Draw]) -> StrategyOutput:
+        recent = draws[-self.window:]
+        c = Counter(zone_of(n) for d in recent for n in d.numbers)
+        total = 6 * len(recent)
+        scores = {}
+        for n in range(1, 46):
+            zi = zone_of(n)
+            lo, hi = ZONES[zi]
+            expected = total * (hi - lo + 1) / 45
+            scores[n] = (expected - c[zi]) / math.sqrt(expected + 1)
+        return StrategyOutput(self.name, _z(scores), self.explanation)
+
+
+class BonusCarryStrategy(BaseStrategy):
+    name = "bonus_carry"
+    explanation = "최근 보너스 번호의 본번호 전환 신호 (반감기 5회 감쇠)"
+
+    def __init__(self, half_life: float = 5.0, window: int = 20):
+        self.half_life = half_life
+        self.window = window
+
+    def score(self, draws: list[Draw]) -> StrategyOutput:
+        scores = {n: 0.0 for n in range(1, 46)}
+        recent = draws[-self.window:]
+        for age, d in enumerate(reversed(recent)):
+            scores[d.bonus] += 0.5 ** (age / self.half_life)
+        return StrategyOutput(self.name, _z(scores), self.explanation)
+
+
+def ac_value(nums: list[int] | tuple[int, ...]) -> int:
+    """AC(Arithmetic Complexity) 값: 서로 다른 양의 차이 개수 - 5."""
+    s = sorted(nums)
+    diffs = {b - a for i, a in enumerate(s) for b in s[i + 1:]}
+    return len(diffs) - (len(s) - 1)
+
+
 def default_strategies() -> list[BaseStrategy]:
     return [
         LongFrequencyStrategy(),
@@ -347,6 +466,11 @@ def default_strategies() -> list[BaseStrategy]:
         PairAffinityStrategy(),
         PrimeFactorStrategy(recent_window=60),
         AntiCrowdStrategy(),
+        MarkovTransitionStrategy(),
+        MultiScaleFrequencyStrategy(),
+        LastDigitStrategy(),
+        ZoneBalanceStrategy(),
+        BonusCarryStrategy(),
     ]
 
 

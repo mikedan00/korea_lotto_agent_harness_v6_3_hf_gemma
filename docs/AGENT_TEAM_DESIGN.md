@@ -8,9 +8,10 @@
 |---|---|---|
 | PlannerAgent | 연구 계획, 품질 게이트 정의 | plan |
 | DataIngestionAgent | CSV/XLS 로딩, 정규화, 검증 | draws |
-| FeatureBacktestAgent | 전략 구현, rolling-forward 백테스트, 후보 생성 | pipeline |
-| VerificationAgent | 최종 세트 유효성, 중복도, 확률 요약 검증 | verification |
-| LlmAnalystAgent | HF Router 기반 보조 해석 | llm |
+| FeatureBacktestAgent | 14개 전략, walk-forward 캐싱, 앙상블 최적화(tune/holdout), 학습형 필터, 후보 생성 | pipeline |
+| VerificationAgent | 최종 세트 유효성, 중복도 검증 | verification |
+| StatisticalAuditAgent | 무작위 대비 유의성, 과적합 격차, 가중치 집중, 필터 통과율 (LLM 불필요) | audit |
+| AiReviewBoardAgent | HF Router 또는 Claude Code CLI 로 분석가 → 비평가(JSON) → 최적화 자문(JSON) | llm |
 | ReportAgent | CSV/JSON 산출물 저장 | outputs |
 
 ## 하네스 철학

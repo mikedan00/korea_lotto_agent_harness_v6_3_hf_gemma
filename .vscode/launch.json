@@ -1,0 +1,72 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Streamlit: app.py",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "streamlit",
+      "args": ["run", "app.py", "--server.port", "8501"],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    },
+    {
+      "name": "CLI: 통계 엔진만 (LLM 없음)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/cli.py",
+      "args": ["--provider", "none"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "CLI: AI 리뷰 - Claude Code CLI",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/cli.py",
+      "args": ["--llm", "--provider", "claude_cli", "--claude-model", "${input:claudeModel}"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "CLI: AI 리뷰 - HF Router",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/cli.py",
+      "args": ["--llm", "--provider", "hf_api", "--hf-model", "${input:hfModel}"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Pytest",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-q"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "claudeModel",
+      "type": "pickString",
+      "description": "Claude Code CLI 모델",
+      "options": ["sonnet", "opus", "haiku", "fable", "claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5"],
+      "default": "sonnet"
+    },
+    {
+      "id": "hfModel",
+      "type": "pickString",
+      "description": "HF Router 모델",
+      "options": [
+        "google/gemma-4-26B-A4B-it:deepinfra",
+        "google/gemma-4-31B-it:deepinfra",
+        "Qwen/Qwen3.5-9B:together",
+        "meta-llama/Llama-3.3-70B-Instruct:together"
+      ],
+      "default": "google/gemma-4-26B-A4B-it:deepinfra"
+    }
+  ]
+}

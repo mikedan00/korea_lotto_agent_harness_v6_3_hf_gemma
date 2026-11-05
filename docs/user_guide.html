@@ -1,0 +1,510 @@
+<title>Lotto Harness v7 사용 설명서</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: 문서형 2단 — 왼쪽 고정 목차 + 오른쪽 본문(약 68자 폭). 좁은 화면에선 1단 + 접이식 목차. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #18202b;
+  --muted: #5b6573;
+  --line: #dde2ea;
+  --accent: #1f4fa8;
+  --accent-soft: #e6edf9;
+  --code-bg: #eef1f6;
+  --warn-bg: #fff6e0;
+  --warn-ink: #6b4a00;
+  --ok: #1d7a46;
+  --bad: #b3261e;
+  /* 한국 로또 공 색상(번호대별) */
+  --ball-1: #f2b705; --ball-2: #2f6fd6; --ball-3: #e0463a; --ball-4: #8a8f98; --ball-5: #3aa556;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151b; --surface: #171c24; --ink: #e6e9ee; --muted: #9aa4b2; --line: #2a313c;
+    --accent: #8db1ff; --accent-soft: #1d2a44; --code-bg: #1e2530; --warn-bg: #2e2612; --warn-ink: #f0d48a;
+    --ok: #5fd08f; --bad: #ff8a80; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151b; --surface: #171c24; --ink: #e6e9ee; --muted: #9aa4b2; --line: #2a313c;
+  --accent: #8db1ff; --accent-soft: #1d2a44; --code-bg: #1e2530; --warn-bg: #2e2612; --warn-ink: #f0d48a;
+  --ok: #5fd08f; --bad: #ff8a80; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15.5px; line-height: 1.7; word-break: keep-all; overflow-wrap: anywhere;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.shell { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; padding-block: 40px 80px; }
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; font-size: 14px; }
+nav.toc .label { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 2px; counter-reset: t; }
+nav.toc li { counter-increment: t; }
+nav.toc a { display: flex; gap: 10px; padding: 5px 8px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+nav.toc a::before { content: counter(t); font-family: var(--font-mono); color: var(--muted); min-width: 1.4em; font-variant-numeric: tabular-nums; }
+nav.toc a:hover, nav.toc a:focus-visible { background: var(--accent-soft); outline: none; }
+main { min-width: 0; }
+header.hero { padding-bottom: 28px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.eyebrow { font-family: var(--font-mono); font-size: 13px; color: var(--accent); }
+h1 { font-size: clamp(28px, 4.2vw, 40px); line-height: 1.25; margin: 8px 0 12px; font-weight: 700; text-wrap: balance; letter-spacing: -0.01em; }
+.lede { color: var(--muted); max-width: 64ch; margin: 0; }
+section { padding-top: 40px; scroll-margin-top: 24px; }
+h2 { font-size: 23px; margin: 0 0 14px; font-weight: 700; text-wrap: balance; display: flex; align-items: baseline; gap: 12px; }
+h2 .n { font-family: var(--font-mono); font-size: 15px; color: var(--accent); font-weight: 500; }
+h3 { font-size: 17px; margin: 26px 0 8px; font-weight: 600; }
+p, ul, ol { max-width: 68ch; }
+a { color: var(--accent); }
+code { font-family: var(--font-mono); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.codeblock { position: relative; margin: 12px 0 18px; }
+.codeblock pre { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-family: var(--font-mono); font-size: 13.5px; line-height: 1.6; }
+.codeblock pre code { background: none; padding: 0; font-size: inherit; }
+.copy { position: absolute; top: 8px; right: 8px; font: 500 12px var(--font-body); color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+.copy:hover, .copy:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+.tablewrap { overflow-x: auto; margin: 12px 0 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); font-size: 12.5px; letter-spacing: .03em; background: var(--code-bg); white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+td code { white-space: nowrap; }
+.note { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 14px 16px; margin: 18px 0; max-width: 72ch; }
+.note strong { color: inherit; }
+.tabs { display: flex; gap: 4px; margin-top: 12px; border-bottom: 1px solid var(--line); }
+.tabs button { font: 600 14px var(--font-body); color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 14px; cursor: pointer; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pipeline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 14px 0 20px; font-family: var(--font-mono); font-size: 12.5px; }
+.pipeline span.step { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; }
+.pipeline span.step.ai { border-color: var(--accent); color: var(--accent); }
+.pipeline span.arrow { color: var(--muted); }
+.sample { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin: 14px 0 20px; display: grid; gap: 14px; max-width: 640px; }
+.setrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.setrow .lab { font-size: 13px; color: var(--muted); min-width: 44px; }
+.ball { width: 34px; height: 34px; border-radius: 50%; display: inline-grid; place-items: center; font: 600 14px var(--font-mono); color: #fff; font-variant-numeric: tabular-nums; text-shadow: 0 1px 1px rgba(0,0,0,.25); }
+.b1 { background: var(--ball-1); } .b2 { background: var(--ball-2); } .b3 { background: var(--ball-3); } .b4 { background: var(--ball-4); } .b5 { background: var(--ball-5); }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.metric { border-top: 1px solid var(--line); padding-top: 8px; }
+.metric .k { font-size: 12px; color: var(--muted); }
+.metric .v { font: 600 18px var(--font-mono); font-variant-numeric: tabular-nums; }
+.v.bad { color: var(--bad); }
+.pill { display: inline-block; font: 600 12px var(--font-mono); padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; }
+.pill.ok { color: var(--ok); } .pill.mid { color: var(--warn-ink); } .pill.bad { color: var(--bad); }
+.legend { font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 12px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+details.mtoc { display: none; }
+footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+@media (max-width: 880px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 0; padding-block: 24px 60px; }
+  nav.toc { display: none; }
+  details.mtoc { display: block; margin: 16px 0 0; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: var(--surface); }
+  details.mtoc summary { cursor: pointer; font-weight: 600; }
+  details.mtoc ol { margin: 8px 0 0; padding-left: 20px; }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="shell">
+  <nav class="toc" aria-label="목차">
+    <div class="label">목차</div>
+    <ol>
+      <li><a href="#prep">준비물</a></li>
+      <li><a href="#install">설치</a></li>
+      <li><a href="#run">실행 방법</a></li>
+      <li><a href="#ui">화면 사용법</a></li>
+      <li><a href="#ai">AI 모델 설정</a></li>
+      <li><a href="#cli">CLI 옵션</a></li>
+      <li><a href="#read">결과 읽는 법</a></li>
+      <li><a href="#deploy">Streamlit Cloud 배포</a></li>
+      <li><a href="#data">데이터 업데이트</a></li>
+      <li><a href="#trouble">문제 해결</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div class="eyebrow">korea_lotto_agent_harness · v7.0</div>
+      <h1>Korea Lotto Agent Harness v7.0 사용 설명서</h1>
+      <p class="lede">설치부터 Streamlit·VS Code·CLI 실행, Hugging Face와 Claude Code CLI 모델 선택, 결과 해석, 배포, 문제 해결까지 정리했습니다.</p>
+      <details class="mtoc">
+        <summary>목차</summary>
+        <ol>
+          <li><a href="#prep">준비물</a></li><li><a href="#install">설치</a></li><li><a href="#run">실행 방법</a></li>
+          <li><a href="#ui">화면 사용법</a></li><li><a href="#ai">AI 모델 설정</a></li><li><a href="#cli">CLI 옵션</a></li>
+          <li><a href="#read">결과 읽는 법</a></li><li><a href="#deploy">Streamlit Cloud 배포</a></li>
+          <li><a href="#data">데이터 업데이트</a></li><li><a href="#trouble">문제 해결</a></li>
+        </ol>
+      </details>
+    </header>
+
+    <div class="note"><strong>먼저 알아둘 점.</strong> 이 도구는 통계 연구용입니다. 공정한 추첨에서는 어떤 6개 조합이든 1등 확률이 1/8,145,060으로 같습니다. 하네스는 각 전략이 무작위보다 나은지 측정하고, 우위가 확인되지 않으면 그 결과를 그대로 보여줍니다.</div>
+
+    <section id="prep">
+      <h2><span class="n">01</span>준비물</h2>
+      <div class="tablewrap"><table>
+        <thead><tr><th>항목</th><th>필요한 경우</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>Python 3.10 이상</td><td>항상</td><td><code>python --version</code>으로 확인</td></tr>
+          <tr><td>VS Code + Python 확장</td><td>권장</td><td>F5 실행·디버그 구성 제공</td></tr>
+          <tr><td>Hugging Face 토큰 <code>hf_...</code></td><td>HF 모델을 쓸 때</td><td><a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a>에서 발급</td></tr>
+          <tr><td>Node.js 18+ · Claude Code CLI</td><td>Claude 모델을 쓸 때 (로컬 전용)</td><td><a href="#ai">5장</a> 참고</td></tr>
+        </tbody>
+      </table></div>
+      <p>LLM이 없어도 통계 엔진, 최적화, 통계 감사는 모두 동작합니다.</p>
+    </section>
+
+    <section id="install">
+      <h2><span class="n">02</span>설치 (최초 1회)</h2>
+      <div class="tabs" role="tablist" aria-label="운영체제">
+        <button role="tab" id="tab-win" aria-selected="true" aria-controls="pane-win">Windows</button>
+        <button role="tab" id="tab-mac" aria-selected="false" aria-controls="pane-mac">macOS / Linux</button>
+      </div>
+      <div id="pane-win" role="tabpanel" aria-labelledby="tab-win">
+        <div class="codeblock"><pre><code>cd C:\0MyWork1\korea_lotto_agent_harness_v6_3_hf_gemma
+python -m venv venv
+.\venv\Scripts\activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt -r requirements-dev.txt
+copy .env.example .env</code></pre></div>
+        <p>PowerShell에서 <code>activate</code>가 막히면 <code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code>를 먼저 실행하세요.</p>
+      </div>
+      <div id="pane-mac" role="tabpanel" aria-labelledby="tab-mac" hidden>
+        <div class="codeblock"><pre><code>cd korea_lotto_agent_harness_v6_3_hf_gemma
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt -r requirements-dev.txt
+cp .env.example .env</code></pre></div>
+      </div>
+
+      <h3><code>.env</code> 편집</h3>
+      <div class="codeblock"><pre><code>LLM_PROVIDER=hf_api          # hf_api | claude_cli | none
+HF_TOKEN=hf_새로_발급한_토큰   # HF를 쓸 때만
+HF_ROUTER_MODEL=google/gemma-4-26B-A4B-it:deepinfra
+CLAUDE_MODEL=sonnet          # sonnet / opus / haiku / fable / 전체 모델 ID
+CLAUDE_TIMEOUT=240</code></pre></div>
+      <p><code>.env</code>는 <code>.gitignore</code>에 들어 있어 커밋되지 않습니다. 토큰을 코드나 README에 직접 쓰지 마세요.</p>
+
+      <h3>설치 확인</h3>
+      <div class="codeblock"><pre><code>python -m pytest -q          # 12 passed 가 나오면 정상
+python cli.py --list-models  # 모델 목록 + Claude CLI 감지 결과</code></pre></div>
+    </section>
+
+    <section id="run">
+      <h2><span class="n">03</span>실행 방법</h2>
+      <h3>A. Streamlit 웹 화면 (권장)</h3>
+      <div class="codeblock"><pre><code>streamlit run app.py</code></pre></div>
+      <p>브라우저에서 <code>http://localhost:8501</code>이 자동으로 열립니다.</p>
+
+      <h3>B. VS Code에서 F5</h3>
+      <ol>
+        <li>VS Code로 프로젝트 폴더를 엽니다.</li>
+        <li><code>Ctrl+Shift+P</code> → <strong>Python: Select Interpreter</strong> → <code>venv</code>를 선택합니다.</li>
+        <li><strong>실행 및 디버그</strong>(<code>Ctrl+Shift+D</code>)에서 구성을 고르고 F5를 누릅니다.</li>
+      </ol>
+      <div class="tablewrap"><table>
+        <thead><tr><th>구성 이름</th><th>동작</th></tr></thead>
+        <tbody>
+          <tr><td>Streamlit: app.py</td><td>디버거가 붙은 Streamlit 실행 (중단점 사용 가능)</td></tr>
+          <tr><td>CLI: 통계 엔진만 (LLM 없음)</td><td><code>python cli.py --provider none</code></td></tr>
+          <tr><td>CLI: AI 리뷰 - Claude Code CLI</td><td>실행할 때 모델 선택 창이 뜨고, Claude CLI로 AI 리뷰</td></tr>
+          <tr><td>CLI: AI 리뷰 - HF Router</td><td>실행할 때 HF 모델 선택 창이 뜨고, <code>.env</code>의 HF_TOKEN 사용</td></tr>
+          <tr><td>Pytest</td><td>테스트 실행</td></tr>
+        </tbody>
+      </table></div>
+      <p><code>Ctrl+Shift+P</code> → <strong>Tasks: Run Task</strong>에서 의존성 설치, Streamlit 실행, 모델 목록, 테스트 작업도 실행할 수 있습니다.</p>
+
+      <h3>C. 터미널 CLI</h3>
+      <div class="codeblock"><pre><code>python cli.py                       # 통계 엔진 + 통계 감사 (약 5초)
+python cli.py --llm --provider claude_cli --claude-model sonnet</code></pre></div>
+    </section>
+
+    <section id="ui">
+      <h2><span class="n">04</span>Streamlit 화면 사용법</h2>
+      <p>실행 버튼을 누르면 7개 에이전트가 차례로 실행되고, 진행 상황이 상태 상자에 표시됩니다.</p>
+      <div class="pipeline" aria-label="에이전트 실행 순서">
+        <span class="step">planner</span><span class="arrow">→</span>
+        <span class="step">data_ingestion</span><span class="arrow">→</span>
+        <span class="step">feature_backtest</span><span class="arrow">→</span>
+        <span class="step">verification</span><span class="arrow">→</span>
+        <span class="step">statistical_audit</span><span class="arrow">→</span>
+        <span class="step ai">ai_review_board</span><span class="arrow">→</span>
+        <span class="step">reporter</span>
+      </div>
+
+      <h3>① 실행 설정</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>항목</th><th>기본값</th><th>설명</th></tr></thead>
+        <tbody>
+          <tr><td>목표 회차</td><td>1226</td><td>리포트에 표시할 회차 번호</td></tr>
+          <tr><td>최종 세트 수</td><td>2</td><td>뽑을 6개 번호 세트 개수 (1~10)</td></tr>
+          <tr><td>후보 조합 샘플 수</td><td>12000</td><td>클수록 후보가 다양해지지만 느려집니다</td></tr>
+          <tr><td>walk-forward 백테스트 회차</td><td>180</td><td>최근 몇 회차로 전략을 검증할지. 클수록 통계가 안정적이지만 느려집니다</td></tr>
+          <tr><td>세트 간 최대 중복</td><td>2</td><td>서로 다른 세트가 함께 가질 수 있는 번호 수</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>② 최적화 고급 설정</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>항목</th><th>기본값</th><th>설명</th></tr></thead>
+        <tbody>
+          <tr><td>앙상블 가중치·온도 최적화</td><td>켬</td><td>끄면 14개 전략을 같은 비중으로 사용</td></tr>
+          <tr><td>tune 비율</td><td>0.7</td><td>백테스트 앞 70%로 가중치를 찾고 뒤 30%로 검증</td></tr>
+          <tr><td>학습형 구조 필터 coverage</td><td>0.95</td><td>과거 당첨조합의 95%가 통과하는 범위만 허용</td></tr>
+          <tr><td>후보 탐색 온도</td><td>0.35</td><td>0이면 완전 무작위 탐색, 클수록 상위 점수 번호 위주</td></tr>
+          <tr><td>세트 간 커버리지 보너스</td><td>0.3</td><td>세트끼리 다른 번호를 쓰도록 유도하는 강도</td></tr>
+          <tr><td>후보 점수 가중치</td><td>1.0 · 0.25 · 0.35 · 0.15</td><td>앙상블 확률 · pair lift · 구조 전형성 · 소인수 구조</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>③ 데이터</h3>
+      <p>비워두면 <code>data/korealotto_1224V_CSV2.csv</code>를 씁니다. 새 회차가 들어 있는 CSV나 공나온순서 XLS/HTML을 올리면 회차 기준으로 합쳐집니다.</p>
+
+      <h3>④ AI 리뷰 모델</h3>
+      <p>공급자와 모델을 고릅니다. 자세한 내용은 <a href="#ai">5장</a>에 있습니다.</p>
+
+      <h3>버튼</h3>
+      <ul>
+        <li><strong>🚀 Agent Harness 실행</strong>: 위 파이프라인 전체를 실행합니다.</li>
+        <li><strong>🤖 AI 자문 제안 적용 후 재실행</strong>: AI 리뷰가 파라미터 조정을 제안했을 때만 켜집니다. 제안값(허용 범위로 제한됨)을 적용해 다시 실행하고, 적용된 값은 "최종 결과" 탭 위쪽에 표시됩니다.</li>
+      </ul>
+
+      <h3>결과 탭</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>탭</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><td>최종 결과</td><td>최종 세트, holdout edge · 평균 적중 · p-value · 감사 판정, 에이전트 실행 로그</td></tr>
+          <tr><td>최적화·감사</td><td>통계 감사 경고, 전략별 가중치 그래프, 최적화 상세, 학습된 필터 범위</td></tr>
+          <tr><td>AI 리뷰</td><td>분석가 리포트, 비평가 판정, 최적화 자문, 적용 가능한 제안, Claude CLI 비용</td></tr>
+          <tr><td>백테스트</td><td>전략별 요약표, 전략별 30회 이동평균 적중 그래프</td></tr>
+          <tr><td>데이터/후보</td><td>번호별 전략 점수와 확률, 상위 200개 후보 조합</td></tr>
+          <tr><td>하네스 설계/다운로드</td><td>에이전트 팀 명세, 결과 CSV/JSON 다운로드</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="ai">
+      <h2><span class="n">05</span>AI 리뷰 모델 설정</h2>
+      <p>AI 리뷰 보드는 같은 모델을 세 번 호출합니다. AI는 번호를 직접 만들거나 바꾸지 않습니다.</p>
+      <ol>
+        <li><strong>분석가</strong>: 최종 세트와 백테스트 결과를 해석하는 리포트</li>
+        <li><strong>비평가</strong>: 분석가 리포트의 과장·오류·과적합을 검토해 <code>accept</code> / <code>revise</code> / <code>reject</code> 판정</li>
+        <li><strong>최적화 자문</strong>: 다음 실행 파라미터 제안. 허용된 키와 범위만 반영됩니다</li>
+      </ol>
+
+      <h3>Hugging Face Router</h3>
+      <ol>
+        <li>사이드바 <strong>LLM 공급자</strong>에서 <strong>Hugging Face Router</strong>를 고릅니다.</li>
+        <li><strong>HF_TOKEN</strong>을 입력합니다. 비워두면 <code>.env</code>나 Streamlit Secrets 값을 쓰고, 입력값은 현재 세션에서만 쓰입니다.</li>
+        <li><strong>HF 모델</strong>을 목록에서 고르거나 <code>✏️ 직접 입력</code>으로 <code>조직/모델:프로바이더</code> 형식을 입력합니다.</li>
+        <li><strong>Fallback 후보</strong>에는 1순위 모델이 실패했을 때 차례로 시도할 모델을 쉼표로 적습니다.</li>
+        <li><strong>🔌 모델 연결 테스트</strong>로 확인합니다.</li>
+      </ol>
+
+      <h3>Claude Code CLI (로컬 노트북 전용)</h3>
+      <p>최초 1회 설치하고 로그인합니다.</p>
+      <div class="codeblock"><pre><code>npm install -g @anthropic-ai/claude-code
+claude          # 로그인 후 /exit 로 종료
+claude --version</code></pre></div>
+      <ol>
+        <li><code>claude</code>가 PATH에 있는 같은 터미널에서 Streamlit을 실행합니다.</li>
+        <li><strong>LLM 공급자</strong>에서 <strong>Claude Code CLI (로컬)</strong>를 고르고, 초록색 "감지" 메시지를 확인합니다.</li>
+        <li><strong>Claude 모델</strong>을 고릅니다. <code>sonnet</code>(기본, 균형) · <code>opus</code>(고성능) · <code>haiku</code>(빠르고 저렴) · <code>fable</code> 또는 전체 모델 ID.</li>
+        <li><strong>CLI 타임아웃</strong>은 세 번의 호출 각각의 제한 시간입니다(기본 240초).</li>
+        <li><strong>🔌 모델 연결 테스트</strong>에서 "Claude CLI 연결 성공"이 나오면 준비가 끝난 것입니다.</li>
+      </ol>
+      <p><code>claude</code>를 찾지 못하면 <code>.env</code>에 <code>CLAUDE_CLI_PATH</code>로 실행 파일 경로를 적으세요. 하네스는 Claude CLI의 도구를 모두 끈 상태(<code>--tools ""</code>)로 호출하므로 파일을 읽거나 명령을 실행하지 않습니다. 요금은 로그인한 Claude 계정 기준이고, 호출 비용은 AI 리뷰 탭 아래쪽에 표시됩니다.</p>
+
+      <h3>LLM 사용 안 함</h3>
+      <p><strong>LLM 사용 안 함</strong>을 고르면 AI 리뷰만 건너뛰고, 통계 감사는 그대로 실행됩니다.</p>
+    </section>
+
+    <section id="cli">
+      <h2><span class="n">06</span>CLI 옵션</h2>
+      <div class="tablewrap"><table>
+        <thead><tr><th>옵션</th><th>기본값</th><th>설명</th></tr></thead>
+        <tbody>
+          <tr><td><code>--csv PATH</code></td><td><code>data/korealotto_1224V_CSV2.csv</code></td><td>기본 회차 CSV</td></tr>
+          <tr><td><code>--xls PATH</code></td><td><code>data/LottoSpecial_공나온순서_1225.xls</code></td><td>추가 회차 XLS/HTML (없으면 무시)</td></tr>
+          <tr><td><code>--target N</code></td><td>1226</td><td>목표 회차</td></tr>
+          <tr><td><code>--sets N</code></td><td>2</td><td>최종 세트 수</td></tr>
+          <tr><td><code>--samples N</code></td><td>12000</td><td>후보 조합 샘플 수</td></tr>
+          <tr><td><code>--backtest N</code></td><td>180</td><td>walk-forward 백테스트 회차</td></tr>
+          <tr><td><code>--outdir DIR</code></td><td><code>outputs</code></td><td>결과 저장 폴더</td></tr>
+          <tr><td><code>--no-optimize</code></td><td>—</td><td>앙상블 최적화 끄기 (균등 가중치)</td></tr>
+          <tr><td><code>--llm</code></td><td>—</td><td>AI 리뷰 보드 실행</td></tr>
+          <tr><td><code>--provider</code></td><td><code>.env</code>의 <code>LLM_PROVIDER</code></td><td><code>hf_api</code> · <code>claude_cli</code> · <code>none</code></td></tr>
+          <tr><td><code>--hf-model</code></td><td><code>.env</code> 값</td><td>HF 1순위 모델</td></tr>
+          <tr><td><code>--claude-model</code></td><td><code>sonnet</code></td><td>Claude CLI 모델</td></tr>
+          <tr><td><code>--list-models</code></td><td>—</td><td>모델 목록과 Claude CLI 감지 결과만 출력</td></tr>
+        </tbody>
+      </table></div>
+      <div class="codeblock"><pre><code>python cli.py --sets 5 --backtest 300 --samples 30000
+python cli.py --llm --provider claude_cli --claude-model haiku
+python cli.py --llm --provider hf_api --hf-model "Qwen/Qwen3.5-9B:together"</code></pre></div>
+      <p>AI 리뷰를 켜면 모델을 세 번 호출하므로 몇 분 걸릴 수 있습니다.</p>
+    </section>
+
+    <section id="read">
+      <h2><span class="n">07</span>결과 읽는 법</h2>
+      <p>아래는 1~1224회 데이터로 기본 설정을 실행한 실제 결과입니다.</p>
+      <div class="sample" aria-label="실행 결과 예시">
+        <div class="setrow"><span class="lab">Set 1</span>
+          <span class="ball b1">3</span><span class="ball b2">17</span><span class="ball b3">27</span><span class="ball b3">28</span><span class="ball b3">30</span><span class="ball b4">38</span>
+        </div>
+        <div class="setrow"><span class="lab">Set 2</span>
+          <span class="ball b1">1</span><span class="ball b2">16</span><span class="ball b3">26</span><span class="ball b3">27</span><span class="ball b4">31</span><span class="ball b4">38</span>
+        </div>
+        <div class="metrics">
+          <div class="metric"><div class="k">holdout edge</div><div class="v bad">−0.0486</div></div>
+          <div class="metric"><div class="k">holdout 평균 적중</div><div class="v bad">0.600</div></div>
+          <div class="metric"><div class="k">앙상블 p-value</div><div class="v">0.873</div></div>
+          <div class="metric"><div class="k">감사 판정</div><div class="v"><span class="pill bad">no_evidence_of_edge</span></div></div>
+        </div>
+        <div class="legend">
+          <span><i class="b1"></i>1–10</span><span><i class="b2"></i>11–20</span><span><i class="b3"></i>21–30</span><span><i class="b4"></i>31–40</span><span><i class="b5"></i>41–45</span>
+        </div>
+      </div>
+      <p>무작위 기대 적중이 0.8개인데 0.600개이므로, 이 결과는 무작위보다 낫다는 근거가 없습니다. 공정한 추첨에서 예상되는 결과입니다.</p>
+
+      <h3>핵심 지표</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>지표</th><th>의미</th><th>보는 법</th></tr></thead>
+        <tbody>
+          <tr><td>holdout edge (nats)</td><td>검증 구간에서 앙상블 확률의 로그우도 − 균등 분포 로그우도</td><td>0보다 크면 무작위보다 나음, 0 이하면 우위 없음</td></tr>
+          <tr><td>holdout 평균 적중</td><td>검증 구간에서 상위 6개 번호가 실제 당첨번호와 맞은 평균 개수</td><td>무작위 기대값은 0.8개</td></tr>
+          <tr><td>앙상블 p-value</td><td>평균 적중이 우연히 0.8보다 클 확률</td><td>0.05 미만이어야 의미 있는 차이</td></tr>
+          <tr><td>shrunk_to_uniform</td><td>검증 실패로 신호를 약하게 만들었는지</td><td><code>True</code>면 사실상 무작위 선택에 가까움</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>감사 판정</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>판정</th><th>조건</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill ok">signal</span></td><td>holdout edge &gt; 0, 앙상블 p ≤ 0.05, 다중비교 보정 후에도 유의한 전략이 있음</td></tr>
+          <tr><td><span class="pill mid">weak_signal</span></td><td>holdout edge &gt; 0 이지만 통계적으로 확인되지 않음</td></tr>
+          <tr><td><span class="pill bad">no_evidence_of_edge</span></td><td>holdout edge ≤ 0 — 무작위 대비 우위 근거 없음</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>백테스트 요약표 컬럼</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>컬럼</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td><code>mean_hits</code></td><td>전략 하나만 썼을 때 상위 6개 번호의 평균 적중</td></tr>
+          <tr><td><code>hits_vs_random</code></td><td><code>mean_hits − 0.8</code></td></tr>
+          <tr><td><code>ll_edge</code></td><td>전략 하나만 썼을 때의 로그우도 edge (음수면 균등보다 나쁨)</td></tr>
+          <tr><td><code>z_score</code>, <code>p_value</code></td><td>무작위 대비 단측 검정</td></tr>
+          <tr><td><code>p_bonferroni</code></td><td>14개 전략 다중비교 보정 p-value</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>후보 조합 구조 지표</h3>
+      <p><code>sum</code> 합계 · <code>odd</code> 홀수 개수 · <code>high</code> 23 이상 개수 · <code>consecutive_pairs</code> 연속번호 쌍 · <code>last_overlap</code> 직전 회차와 겹친 수 · <code>ac</code> AC값(서로 다른 차이 개수 − 5) · <code>zones_used</code> 사용한 번호대 수 · <code>max_same_last_digit</code> 같은 끝수 최대 개수 · <code>prime_count</code> 소수 개수</p>
+
+      <h3>저장 파일 (<code>outputs/</code>)</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>파일</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><td><code>prediction_result.json</code></td><td>최종 세트, 최적화 결과, 필터, 상위 20개 후보</td></tr>
+          <tr><td><code>harness_report.json</code></td><td>계획, 검증, 통계 감사, 에이전트 결과, AI 리뷰 전체</td></tr>
+          <tr><td><code>backtest_summary.csv</code> · <code>backtest_detail.csv</code></td><td>전략별 요약 · 회차별 예측/정답/적중</td></tr>
+          <tr><td><code>weights.csv</code></td><td>최적화된 전략 가중치</td></tr>
+          <tr><td><code>number_scores.csv</code></td><td>번호별 전략 점수와 앙상블 확률</td></tr>
+          <tr><td><code>candidates.csv</code></td><td>전체 후보 조합과 점수</td></tr>
+          <tr><td><code>history.csv</code></td><td>불러온 회차 데이터</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="deploy">
+      <h2><span class="n">08</span>Streamlit Cloud 배포</h2>
+      <ol>
+        <li>코드를 GitHub 저장소에 push합니다.</li>
+        <li><a href="https://share.streamlit.io" target="_blank" rel="noopener">share.streamlit.io</a>에서 <strong>New app</strong> → 저장소와 브랜치를 고르고, Main file은 <code>app.py</code>로 둡니다.</li>
+        <li><strong>Advanced settings → Secrets</strong>에 <code>STREAMLIT_SECRETS_TEMPLATE.toml</code> 내용을 붙여넣고 <code>HF_TOKEN</code>을 실제 토큰으로 바꿉니다.</li>
+        <li>Deploy를 누릅니다.</li>
+      </ol>
+      <ul>
+        <li>Streamlit Cloud에는 Claude Code CLI가 없어서 사이드바에 "미감지"로 표시됩니다. 클라우드에서는 Hugging Face Router를 쓰세요.</li>
+        <li>로컬에서 Secrets를 시험하려면 <code>.streamlit/secrets.toml.example</code>을 <code>.streamlit/secrets.toml</code>로 복사해 편집합니다(커밋되지 않음).</li>
+        <li>설정 우선순위: 화면 입력값 → Streamlit Secrets → <code>.env</code>·환경변수 → 기본값</li>
+      </ul>
+    </section>
+
+    <section id="data">
+      <h2><span class="n">09</span>데이터 업데이트</h2>
+      <ul>
+        <li>새 회차가 추가된 CSV를 <code>data/</code>에 넣고 <code>--csv</code>로 지정하거나, Streamlit에서 업로드합니다.</li>
+        <li>CSV 컬럼은 <code>회차, 추첨일, 당첨번호1~6, 보너스</code>입니다. 한글·영문 컬럼명과 UTF-8·CP949 인코딩을 자동으로 인식합니다.</li>
+        <li>동행복권 공나온순서 XLS(HTML 표 형식)도 올릴 수 있으며, 같은 회차는 나중에 읽은 파일 값으로 덮어씁니다.</li>
+        <li>불러올 때 번호 범위(1~45), 본번호 중복, 보너스 중복을 검사하고, 오류가 있으면 실행이 멈춥니다.</li>
+      </ul>
+    </section>
+
+    <section id="trouble">
+      <h2><span class="n">10</span>문제 해결</h2>
+      <div class="tablewrap"><table>
+        <thead><tr><th>증상</th><th>원인과 해결</th></tr></thead>
+        <tbody>
+          <tr><td><code>No module named 'src'</code></td><td>프로젝트 루트 폴더에서 실행하세요</td></tr>
+          <tr><td><code>streamlit: command not found</code></td><td>가상환경 활성화를 확인하거나 <code>python -m streamlit run app.py</code></td></tr>
+          <tr><td>HF 연결 테스트 <code>HTTP 401</code></td><td>토큰이 잘못됐거나 만료됨 → 새로 발급</td></tr>
+          <tr><td>HF <code>HTTP 404</code> · model not supported</td><td>해당 프로바이더가 모델을 지원하지 않음 → 다른 모델이나 <code>:프로바이더</code> 선택, Fallback 후보 확인</td></tr>
+          <tr><td>HF <code>HTTP 429</code></td><td>사용량 제한 → 잠시 후 다시 시도하거나 다른 모델</td></tr>
+          <tr><td>Claude CLI "미감지"</td><td><code>claude --version</code> 확인, Streamlit을 같은 터미널에서 실행, 또는 <code>.env</code>에 <code>CLAUDE_CLI_PATH</code> 지정</td></tr>
+          <tr><td>Claude CLI 인증 오류</td><td>터미널에서 <code>claude</code>를 실행해 다시 로그인</td></tr>
+          <tr><td>Claude CLI 타임아웃</td><td>사이드바 CLI 타임아웃을 늘리거나 <code>haiku</code> 사용</td></tr>
+          <tr><td>비평가·자문 결과가 원문 텍스트로만 표시됨</td><td>모델이 JSON을 만들지 못함 → 더 큰 모델 사용</td></tr>
+          <tr><td>실행이 느림</td><td>백테스트 회차와 후보 조합 샘플 수를 줄이세요</td></tr>
+          <tr><td>최종 세트가 요청보다 적음</td><td>세트 간 최대 중복이나 샘플 수를 늘리세요</td></tr>
+          <tr><td>실행할 때마다 세트가 같음</td><td>고정 seed를 써서 생기는 정상 동작입니다. 데이터나 설정이 바뀌면 결과도 바뀝니다</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <footer>Korea Lotto Agent Harness v7.0 · 원본 문서: <code>docs/USER_GUIDE.md</code></footer>
+  </main>
+</div>
+
+<script>
+(function () {
+  // 코드 블록 복사 버튼
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var btn = document.createElement('button');
+    btn.className = 'copy'; btn.type = 'button'; btn.textContent = '복사';
+    btn.addEventListener('click', function () {
+      var code = block.querySelector('code');
+      var text = code.innerText;
+      var done = function () { btn.textContent = '복사됨'; setTimeout(function () { btn.textContent = '복사'; }, 1500); };
+      var fallback = function () {
+        var r = document.createRange(); r.selectNodeContents(code);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        btn.textContent = 'Ctrl+C로 복사';
+      };
+      try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+    });
+    block.appendChild(btn);
+  });
+
+  // 운영체제 탭
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tabs [role="tab"]'));
+  function select(tab) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    try { localStorage.setItem('guide-os', tab.id); } catch (e) {}
+  }
+  tabs.forEach(function (t) { t.addEventListener('click', function () { select(t); }); });
+  try {
+    var saved = localStorage.getItem('guide-os');
+    if (saved && document.getElementById(saved)) select(document.getElementById(saved));
+  } catch (e) {}
+})();
+</script>

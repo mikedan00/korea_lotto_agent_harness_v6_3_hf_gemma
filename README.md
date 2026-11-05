@@ -1,44 +1,84 @@
-# Korea Lotto Agent Harness v6.3 HF Gemma4
+# Korea Lotto Agent Harness v7.0
 
-CLI를 사용하지 않고 **Streamlit 화면에서 HF_TOKEN과 Gemma4 Router 모델을 입력해 실행**하는 버전입니다.
+로또 6/45 통계 연구 하네스. 지금까지 연구한 전략을 **14개 walk-forward 전략 + 앙상블 최적화기**로 통합하고,
+**결정론적 통계 감사 + AI 리뷰 보드(분석가 → 비평가 → 최적화 자문)** 를 붙였습니다.
+AI 모델은 **Hugging Face Router**(Streamlit Cloud/로컬) 또는 **Claude Code CLI**(로컬 노트북/VS Code)에서 선택합니다.
 
-## 핵심 기능
+> ⚠️ 공정추첨에서 모든 6개 조합의 1등 확률은 1/8,145,060 으로 동일합니다. 이 프로젝트는 "예측률을 높였다"고 주장하지 않고,
+> 각 전략이 **무작위 대비 우위가 있는지 정직하게 측정**합니다. 1~1224회 데이터 기준 현재 판정은 `no_evidence_of_edge`
+> (holdout edge ≤ 0, 앙상블 적중 p≈0.87)이며, 이 경우 시스템은 신호를 자동으로 수축합니다.
 
-- Streamlit UI에서 HF_TOKEN 입력 또는 Streamlit Secrets 사용
-- 기본 모델: `google/gemma-4-26B-A4B-it:deepinfra`
-- 후보 모델 fallback 지원
-- HF 연결 테스트 버튼
-- 통계 엔진: 빈도/최근감쇠/gap/hot-cold/momentum/Bayes/pair affinity/prime factor/anti-crowd
-- Agent Harness: 기획 → 데이터 검증 → 백테스트 → 후보 생성 → 검증 → Gemma4 분석 → 리포트 저장
-- VS Code 로컬, Streamlit Cloud, Colab 지원
+## v7.0 핵심
 
-## VS Code에서 Streamlit 실행
+| 영역 | 내용 |
+|---|---|
+| 전략 14개 | long_frequency, recent_decay, gap, hot_cold, momentum, bayes, pair_affinity, prime_factor, anti_crowd + **markov_transition, multi_scale_freq, last_digit, zone_balance, bonus_carry** |
+| 최적화 | fold별 점수 캐싱 → 앙상블 확률 `q = softmax(β·Σ w_k z_k)` 의 로그우도 최대화(랜덤 Dirichlet 탐색 + hill-climb, L2 정규화), tune/holdout 분리 검증, holdout 실패 시 β 수축 |
+| 검정 | 전략별 top-6 적중 z-검정(기대 0.8, 초기하분산) + Bonferroni 보정, 로그우도 edge(nats) |
+| 후보 생성 | Gumbel top-k 샘플링, 과거 당첨조합 95% 를 포함하는 **학습형 구조 필터**(합계·홀짝·고저·연속·직전중복·AC·구간수·끝수·소수), 확률/pair lift/전형성/소인수 구조 다성분 점수 |
+| 세트 선택 | 점수 + 신규 번호 커버리지 보너스 greedy, 세트 간 overlap 제한 |
+| 감사 | `statistical_audit` (LLM 불필요): 과적합 격차, 유의성, 가중치 집중, 필터 통과율 |
+| AI 리뷰 | 분석가(마크다운) → 비평가(JSON verdict/risk_flags) → 자문(JSON 파라미터 제안, 허용범위 클램프) → Streamlit 에서 **"AI 자문 제안 적용 후 재실행"** |
+| 모델 선택 | HF: 프리셋 드롭다운 + 직접입력 + fallback 목록 / Claude CLI: sonnet·opus·haiku·fable 또는 전체 모델 ID |
+
+📘 **실행 방법 & 사용 설명서: [docs/USER_GUIDE.md](docs/USER_GUIDE.md)** (웹 페이지 버전: `docs/user_guide.html` 을 브라우저로 열기)  
+자세한 알고리즘: [docs/V7_ALGORITHMS.md](docs/V7_ALGORITHMS.md)
+
+## 1. 로컬 노트북 (VS Code)
 
 ```powershell
 cd C:\0MyWork1\korea_lotto_agent_harness_v6_3_hf_gemma
 python -m venv venv
 .\venv\Scripts\activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt
+copy .env.example .env   # HF_TOKEN / LLM_PROVIDER / CLAUDE_MODEL 편집
 streamlit run app.py
 ```
 
-앱 화면 왼쪽 사이드바에서 `HF_TOKEN`을 입력하거나, Streamlit Secrets에 넣으세요.
+VS Code 에서는 `.vscode/launch.json` 의 실행 구성을 사용하세요 (F5).
 
-## Streamlit Cloud Secrets
+- **Streamlit: app.py** — 디버거 연결된 Streamlit
+- **CLI: AI 리뷰 - Claude Code CLI** — 실행 시 모델 선택 팝업(sonnet/opus/haiku…)
+- **CLI: AI 리뷰 - HF Router** — 실행 시 HF 모델 선택 팝업
+- **Pytest**
 
-```toml
-LLM_ENGINE = "hf_api"
-HF_TOKEN = "hf_새로_발급한_토큰"
-HF_ROUTER_MODEL = "google/gemma-4-26B-A4B-it:deepinfra"
-HF_MODEL_CANDIDATES = "google/gemma-4-26B-A4B-it:deepinfra,google/gemma-4-26B-A4B-it:novita,google/gemma-4-31B-it:deepinfra,google/gemma-4-31B-it:together,Qwen/Qwen3.5-9B:together,Qwen/Qwen2.5-7B-Instruct:together"
-HF_MAX_TOKENS = "1400"
-HF_TEMPERATURE = "0.2"
-HF_TIMEOUT_CONNECT = "10"
-HF_TIMEOUT_READ = "120"
-HF_MAX_RETRIES = "3"
+### Claude Code CLI 사용 (로컬 전용)
+
+```bash
+npm install -g @anthropic-ai/claude-code   # 또는 공식 설치 스크립트
+claude                                      # 최초 1회 로그인
+python cli.py --list-models                 # CLI 감지 확인
+python cli.py --llm --provider claude_cli --claude-model sonnet
 ```
 
-## 주의
+앱은 `claude -p --model <모델> --output-format json --tools "" --no-session-persistence` 로 호출합니다.
+도구를 모두 끈 상태로 텍스트 분석만 수행하며, 응답의 비용(`total_cost_usd`)을 화면에 표시합니다.
 
-Gemma4는 통계 엔진이 만든 후보 세트를 설명하고 비판하는 보조 분석기로 사용됩니다. 공정추첨을 전제로 모든 6개 조합의 실제 1등 확률은 동일합니다.
+### CLI 옵션
+
+```bash
+python cli.py                                  # 통계 엔진 + 감사
+python cli.py --llm --provider hf_api --hf-model "Qwen/Qwen3.5-9B:together"
+python cli.py --no-optimize --backtest 300 --samples 30000
+```
+
+## 2. Streamlit Cloud 배포
+
+1. GitHub 저장소 연결 → Main file: `app.py`
+2. Settings → Secrets 에 `STREAMLIT_SECRETS_TEMPLATE.toml` 내용 입력 (HF_TOKEN 은 새로 발급)
+3. Claude Code CLI 는 클라우드 컨테이너에 없으므로 사이드바에 "미감지"로 표시됩니다 → **HF Router** 를 사용하세요.
+
+## 3. 산출물 (`outputs/`)
+
+`prediction_result.json`(최종 세트·최적화·필터), `harness_report.json`(감사·AI 리뷰 포함), `backtest_summary.csv`,
+`backtest_detail.csv`, `weights.csv`, `number_scores.csv`, `candidates.csv`, `history.csv`
+
+## 4. 테스트
+
+```bash
+python -m pytest -q
+```
+
+누수 방지(fold 점수 = 과거 구간 재계산), 신호를 심은 합성 데이터에서 최적화기가 신호 전략을 찾는지, Claude CLI 명령 구성,
+LLM 제안 클램프 등을 검증합니다.
