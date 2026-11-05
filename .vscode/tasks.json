@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "venv: 의존성 설치",
+      "type": "shell",
+      "command": "python -m pip install -r requirements.txt -r requirements-dev.txt",
+      "problemMatcher": []
+    },
+    {
+      "label": "Streamlit 실행",
+      "type": "shell",
+      "command": "python -m streamlit run app.py",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "CLI: 모델 목록 / Claude CLI 감지",
+      "type": "shell",
+      "command": "python cli.py --list-models",
+      "problemMatcher": []
+    },
+    {
+      "label": "테스트",
+      "type": "shell",
+      "command": "python -m pytest -q",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    }
+  ]
+}

@@ -4,8 +4,11 @@
     "n_sets": 2,
     "backtest_window": 180,
     "candidate_samples": 12000,
+    "optimize": true,
+    "llm_provider": "none",
     "quality_gates": [
       "데이터 유효성 오류 0건",
+      "holdout 구간으로 앙상블 과적합 검증",
       "미래 데이터 누수 금지",
       "최종 세트 개수 일치",
       "세트 간 overlap 제한 충족",
@@ -15,19 +18,19 @@
   "final_sets": [
     [
       3,
-      12,
+      17,
       27,
-      37,
-      38,
-      40
+      28,
+      30,
+      38
     ],
     [
-      3,
-      7,
-      20,
-      24,
+      1,
+      16,
+      26,
       27,
-      33
+      31,
+      38
     ]
   ],
   "probability": {
@@ -46,37 +49,92 @@
     "status": "ok",
     "errors": []
   },
+  "optimization": {
+    "weights": {
+      "long_frequency": 0.0,
+      "recent_decay": 0.08128484913288606,
+      "gap": 0.0042741904367555004,
+      "hot_cold": 0.10331646621961216,
+      "momentum": 0.2751691252835727,
+      "bayes": 0.0029252405961550086,
+      "pair_affinity": 0.0,
+      "prime_factor": 0.05484814916946306,
+      "anti_crowd": 0.3339226342017103,
+      "markov_transition": 0.01983628686612037,
+      "multi_scale_freq": 0.12442305809372488,
+      "last_digit": 0.0,
+      "zone_balance": 0.0,
+      "bonus_carry": 0.0
+    },
+    "beta": 0.02079193308786833,
+    "tune_folds": 125,
+    "holdout_folds": 55,
+    "tune_edge_nats": 0.008273795640100445,
+    "holdout_edge_nats": -0.04861946409912932,
+    "holdout_mean_hits": 0.6,
+    "random_expected_hits": 0.8,
+    "ensemble_mean_hits_all_folds": 0.7333333333333333,
+    "ensemble_hits_z": -1.1409536133993345,
+    "ensemble_hits_p_value": 0.873055386570552,
+    "shrunk_to_uniform": true,
+    "history": [
+      {
+        "stage": "random_search",
+        "tune_edge": 0.0038344990425495775,
+        "beta": 0.1
+      },
+      {
+        "stage": "hill_climb",
+        "tune_edge": 0.006753945225406357,
+        "beta": 0.08316773235147332
+      }
+    ]
+  },
+  "audit": {
+    "verdict": "no_evidence_of_edge",
+    "risk_flags": [
+      "holdout 로그우도 edge -0.0486 ≤ 0: 균등 무작위 대비 우위 증거 없음 → 신호 수축 적용",
+      "tune/holdout edge 격차 0.0569 nats: 과적합 의심",
+      "앙상블 top-6 적중 p=0.873: 무작위(기대 0.8개)와 통계적으로 구분 불가",
+      "Bonferroni 보정 후 유의한 단일 전략 없음 (다중비교 보정)"
+    ],
+    "significant_strategies": [],
+    "holdout_edge_nats": -0.04861946409912932,
+    "tune_edge_nats": 0.008273795640100445,
+    "ensemble_hits_p_value": 0.873055386570552,
+    "leakage_check": "pass (fold t 는 draws[:t] 만 사용하도록 구현)"
+  },
   "agent_results": [
     {
       "name": "planner",
       "status": "ok",
       "message": "실험 계획 수립 완료",
       "artifacts": {},
-      "started_at": "2026-07-02T06:06:13.024055",
-      "ended_at": "2026-07-02T06:06:13.024073"
+      "started_at": "2026-11-05T04:49:53.397791+00:00",
+      "ended_at": "2026-11-05T04:49:53.397803+00:00"
     },
     {
       "name": "data_ingestion",
       "status": "ok",
-      "message": "1~1225회, 총 1225개 회차 로드",
+      "message": "1~1224회, 총 1224개 회차 로드",
       "artifacts": {
         "round_min": 1,
-        "round_max": 1225,
-        "rows": 1225
+        "round_max": 1224,
+        "rows": 1224
       },
-      "started_at": "2026-07-02T06:06:13.159525",
-      "ended_at": "2026-07-02T06:06:13.159530"
+      "started_at": "2026-11-05T04:49:53.472284+00:00",
+      "ended_at": "2026-11-05T04:49:53.472290+00:00"
     },
     {
       "name": "feature_backtest",
       "status": "ok",
-      "message": "전략 9개 rolling-forward 백테스트 및 후보 생성 완료",
+      "message": "전략 14개 walk-forward 백테스트 + 앙상블 최적화 완료 (holdout edge -0.0486 nats, 수축=True)",
       "artifacts": {
-        "strategy_count": 9,
+        "strategy_count": 14,
         "candidate_count": 12000
       },
-      "started_at": "2026-07-02T06:06:15.679968",
-      "ended_at": "2026-07-02T06:06:15.679972"
+      "started_at": "2026-11-05T04:49:58.195414+00:00",
+      "ended_at": "2026-11-05T04:49:58.195420+00:00"
     },
     {
       "name": "verification",
@@ -85,8 +143,18 @@
       "artifacts": {
         "errors": []
       },
-      "started_at": "2026-07-02T06:06:15.679989",
-      "ended_at": "2026-07-02T06:06:15.679992"
+      "started_at": "2026-11-05T04:49:58.195494+00:00",
+      "ended_at": "2026-11-05T04:49:58.195496+00:00"
+    },
+    {
+      "name": "statistical_audit",
+      "status": "ok",
+      "message": "판정=no_evidence_of_edge, 리스크 4건",
+      "artifacts": {
+        "verdict": "no_evidence_of_edge"
+      },
+      "started_at": "2026-11-05T04:49:58.196297+00:00",
+      "ended_at": "2026-11-05T04:49:58.196300+00:00"
     }
   ],
   "llm": null
