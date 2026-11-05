@@ -63,6 +63,13 @@ python cli.py --llm --provider hf_api --hf-model "Qwen/Qwen3.5-9B:together"
 python cli.py --no-optimize --backtest 300 --samples 30000
 ```
 
+## 1-1. Google Colab (셀 하나)
+
+`notebooks/colab_one_cell.py` 내용을 Colab 새 노트북의 첫 셀에 붙여넣고 실행하면 됩니다(또는 `notebooks/korea_lotto_v7_colab.ipynb` 업로드).
+프로그램 전체와 기본 데이터가 셀 안에 들어 있고, 폼에서 설정·모델을 고르며, 최신 회차 XLS/CSV 를 업로드할 수 있습니다.
+AI 리뷰 키는 Colab 🔑 보안 비밀(`HF_TOKEN` 또는 `ANTHROPIC_API_KEY`)에 넣습니다. 자세한 내용은 사용 설명서 3-D 를 보세요.
+`notebooks/colab_single_file.py` 와 `lotto_agent_harness_colab.ipynb` 는 v6 시절 파일입니다.
+
 ## 2. Streamlit Cloud 배포
 
 1. GitHub 저장소 연결 → Main file: `app.py`

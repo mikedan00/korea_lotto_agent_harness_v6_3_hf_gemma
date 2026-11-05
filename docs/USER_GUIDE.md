@@ -7,7 +7,7 @@
 
 1. [준비물](#1-준비물)
 2. [설치 (최초 1회)](#2-설치-최초-1회)
-3. [실행 방법 3가지](#3-실행-방법-3가지)
+3. [실행 방법 4가지](#3-실행-방법-4가지)
 4. [Streamlit 화면 사용법](#4-streamlit-화면-사용법)
 5. [AI 리뷰 모델 설정](#5-ai-리뷰-모델-설정)
 6. [CLI 사용법](#6-cli-사용법)
@@ -78,7 +78,7 @@ python cli.py --list-models  # 모델 프리셋 + Claude CLI 감지 결과
 
 ---
 
-## 3. 실행 방법 3가지
+## 3. 실행 방법 4가지
 
 ### A. Streamlit 웹 화면 (권장)
 
@@ -112,6 +112,32 @@ python cli.py --llm --provider claude_cli --claude-model sonnet
 ```
 
 자세한 옵션은 [6. CLI 사용법](#6-cli-사용법) 참고.
+
+### D. Google Colab (셀 하나)
+
+설치 없이 브라우저에서 실행합니다. 프로그램 전체와 기본 데이터(1~1224회)가 셀 하나에 들어 있습니다.
+
+1. https://colab.research.google.com 에서 새 노트북을 만듭니다.
+2. `notebooks/colab_one_cell.py` 내용을 **전부 복사해 첫 셀에 붙여넣고** 실행(▶)합니다.
+   - 또는 `notebooks/korea_lotto_v7_colab.ipynb` 를 Colab 에서 **파일 → 노트북 업로드**로 엽니다.
+3. 셀 오른쪽 폼에서 목표 회차, 세트 수, 백테스트 회차, LLM 공급자 등을 바꿀 수 있습니다.
+4. `UPLOAD_DATA` 가 켜져 있으면 실행 중 업로드 창이 뜹니다.
+   - 공나온순서 XLS/HTML 을 올리면 기본 CSV 와 회차 기준으로 합쳐집니다(같은 회차는 XLS 값 우선).
+   - 전체 회차 CSV 를 올리면 기본 CSV 대신 사용합니다.
+   - 추가 데이터가 없으면 **취소**를 누르면 됩니다.
+5. 결과는 셀 아래에 표로 표시되고, `lotto_results.zip` 으로 내려받아집니다.
+
+AI 리뷰를 쓰려면 Colab 왼쪽 🔑 **보안 비밀**에 키를 저장하고 **노트북 액세스**를 켜세요.
+
+| `LLM_PROVIDER` | 필요한 보안 비밀 | 비고 |
+|---|---|---|
+| `none` | — | 통계 엔진과 통계 감사만 실행 (기본값, 약 10초) |
+| `hf_api` | `HF_TOKEN` | `HF_MODEL` 에 모델 입력 |
+| `claude_cli` | `ANTHROPIC_API_KEY` | Claude Code CLI 가 없으면 셀이 `npm` 으로 자동 설치. `CLAUDE_MODEL` 선택 |
+
+`APPLY_AI_SUGGESTIONS` 를 켜면 AI 자문 제안을 적용해 한 번 더 실행하고 두 결과를 차례로 보여줍니다.
+
+> 개발자용: `src/` 를 고친 뒤에는 `python tools/build_colab_cell.py` 로 셀을 다시 생성하세요. 테스트가 셀이 최신인지 검사합니다.
 
 ---
 
