@@ -46,6 +46,7 @@ class EnsembleFit:
     holdout_hits: float
     shrunk: bool
     history: list[dict[str, Any]] = field(default_factory=list)
+    tuned_beta: float = 0.0  # 수축 전 beta (holdout 검증 대상)
 
 
 def collect_fold_scores(draws: list[Draw], strategies: list[BaseStrategy], start_idx: int) -> FoldCache:
@@ -72,6 +73,14 @@ def ensemble_logits(scores: np.ndarray, w: np.ndarray, beta: float) -> np.ndarra
     return beta * np.einsum("fkn,k->fn", scores, w)
 
 
+def fold_edges(scores: np.ndarray, actual: np.ndarray, w: np.ndarray, beta: float) -> np.ndarray:
+    """fold별 로그우도 edge (균등 대비, nats)."""
+    if len(actual) == 0:
+        return np.zeros(0)
+    lp = _log_softmax(ensemble_logits(scores, w, beta))
+    return (lp * actual).sum(axis=1) - UNIFORM_LL
+
+
 def mean_edge(scores: np.ndarray, actual: np.ndarray, w: np.ndarray, beta: float) -> float:
     if len(actual) == 0:
         return 0.0
@@ -88,10 +97,23 @@ def top6_hits(logits: np.ndarray, actual: np.ndarray) -> np.ndarray:
 def hits_significance(hits: np.ndarray) -> dict[str, float]:
     f = len(hits)
     if f == 0:
-        return {"z": 0.0, "p_value": 1.0}
+        return {"z": 0.0, "p_value": 1.0, "p_two_sided": 1.0}
     z = (float(hits.mean()) - EXPECTED_HITS) / math.sqrt(HITS_VAR / f)
     p = 0.5 * math.erfc(z / math.sqrt(2))  # 단측: 기준보다 큰가?
-    return {"z": z, "p_value": p}
+    p2 = math.erfc(abs(z) / math.sqrt(2))  # 양측: 기준과 다른가?
+    return {"z": z, "p_value": p, "p_two_sided": p2}
+
+
+def bootstrap_ci(x: np.ndarray, n_boot: int = 2000, level: float = 0.95, seed: int = 0) -> tuple[float, float]:
+    """fold 단위 재표본 평균의 백분위 신뢰구간."""
+    x = np.asarray(x, dtype=float)
+    if len(x) < 2:
+        m = float(x.mean()) if len(x) else 0.0
+        return (m, m)
+    rng = np.random.default_rng(seed)
+    means = x[rng.integers(0, len(x), size=(n_boot, len(x)))].mean(axis=1)
+    a = (1 - level) / 2
+    return (float(np.quantile(means, a)), float(np.quantile(means, 1 - a)))
 
 
 def strategy_report(cache: FoldCache) -> list[dict[str, Any]]:
@@ -115,6 +137,7 @@ def strategy_report(cache: FoldCache) -> list[dict[str, Any]]:
             "ll_edge": best_edge,
             "z_score": sig["z"],
             "p_value": sig["p_value"],
+            "p_two_sided": sig["p_two_sided"],
             "p_bonferroni": min(1.0, sig["p_value"] * k),
         })
     return rows
@@ -188,7 +211,55 @@ def optimize_ensemble(
         holdout_hits=hold_hits,
         shrunk=shrunk,
         history=history,
+        tuned_beta=float(best_b),
     )
+
+
+def holdout_evaluation(cache: FoldCache, fit: EnsembleFit, tune_ratio: float, seed: int = 0) -> dict[str, Any]:
+    """튜닝에 쓰지 않은 holdout fold 만으로 한 순수 표본외 평가.
+
+    - 앙상블(튜닝 가중치, 수축 전 beta)의 edge·적중 + 부트스트랩 95% CI
+    - 적중 z-검정 단측/양측 p
+    - 같은 fold 에서 균등 가중치 기준선과의 짝지은(paired) 차이 + CI
+    """
+    f = len(cache.rounds)
+    cut = max(1, int(f * tune_ratio)) if f > 1 else f
+    s_hold, y_hold = cache.scores[cut:], cache.actual[cut:]
+    k = len(cache.names)
+    if len(y_hold) == 0:
+        return {"holdout_folds": 0}
+    beta = fit.tuned_beta if fit.tuned_beta > 0 else max(fit.beta, 1e-6)
+    w = np.array([fit.weights[n] for n in cache.names])
+    eq = np.full(k, 1.0 / k)
+
+    e_ens = fold_edges(s_hold, y_hold, w, beta)
+    e_eq = fold_edges(s_hold, y_hold, eq, beta)
+    h_ens = top6_hits(ensemble_logits(s_hold, w, beta), y_hold)
+    h_eq = top6_hits(ensemble_logits(s_hold, eq, beta), y_hold)
+    sig = hits_significance(h_ens)
+    sig_eq = hits_significance(h_eq)
+    return {
+        "holdout_folds": int(len(y_hold)),
+        "holdout_rounds": [int(cache.rounds[cut]), int(cache.rounds[-1])],
+        "beta_evaluated": float(beta),
+        "edge_nats": float(e_ens.mean()),
+        "edge_ci95": bootstrap_ci(e_ens, seed=seed),
+        "mean_hits": float(h_ens.mean()),
+        "mean_hits_ci95": bootstrap_ci(h_ens, seed=seed + 1),
+        "hits_z": sig["z"],
+        "hits_p_one_sided": sig["p_value"],
+        "hits_p_two_sided": sig["p_two_sided"],
+        "baseline_equal_weights": {
+            "edge_nats": float(e_eq.mean()),
+            "edge_ci95": bootstrap_ci(e_eq, seed=seed + 2),
+            "mean_hits": float(h_eq.mean()),
+            "hits_p_two_sided": sig_eq["p_two_sided"],
+        },
+        "ensemble_minus_equal_edge": float((e_ens - e_eq).mean()),
+        "ensemble_minus_equal_edge_ci95": bootstrap_ci(e_ens - e_eq, seed=seed + 3),
+        "ensemble_minus_equal_hits": float((h_ens - h_eq).mean()),
+        "ensemble_minus_equal_hits_ci95": bootstrap_ci(h_ens - h_eq, seed=seed + 4),
+    }
 
 
 def ensemble_probabilities(outputs, weights: dict[str, float], beta: float) -> dict[int, float]:

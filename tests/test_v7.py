@@ -117,3 +117,60 @@ def test_claude_cli_client_builds_command(monkeypatch):
 
 def test_none_provider():
     assert get_llm_client(AppConfig(llm_provider="none")) is None
+
+
+def _planted_cache(f=200, seed=0):
+    rng = np.random.default_rng(seed)
+    actual = np.zeros((f, 45))
+    scores = rng.normal(size=(f, 3, 45))
+    for i in range(f):
+        nums = rng.choice(45, 6, replace=False)
+        actual[i, nums] = 1
+        scores[i, 1, nums] += 1.5
+    return FoldCache(list(range(1, f + 1)), ["noise_a", "signal", "noise_b"], scores, actual)
+
+
+def test_holdout_evaluation_detects_signal_and_beats_equal_baseline():
+    from src.optimizer import holdout_evaluation
+    cache = _planted_cache()
+    fit = optimize_ensemble(cache, tune_ratio=0.7, n_random=100, n_refine=100)
+    ho = holdout_evaluation(cache, fit, 0.7)
+    assert ho["holdout_folds"] == 60 and ho["holdout_rounds"] == [141, 200]
+    assert ho["edge_ci95"][0] > 0
+    assert ho["hits_p_one_sided"] < 0.01
+    assert ho["ensemble_minus_equal_edge_ci95"][0] > 0  # 신호 전략 집중이 균등 가중치보다 나음
+
+
+def test_bootstrap_ci_and_two_sided_p():
+    from src.optimizer import bootstrap_ci, hits_significance
+    lo, hi = bootstrap_ci(np.r_[np.zeros(50), np.ones(50)])
+    assert lo < 0.5 < hi and 0.35 < lo and hi < 0.65
+    sig = hits_significance(np.full(100, 0.8))
+    assert abs(sig["z"]) < 1e-9 and abs(sig["p_two_sided"] - 1.0) < 1e-9
+
+
+def test_score_components_and_final_set_details():
+    cfg = AppConfig.from_env(backtest_window=40, candidate_samples=2000, opt_random=30, opt_refine=30, output_dir="outputs")
+    r = run_core_pipeline(DRAWS, cfg)
+    c = r["candidates"]
+    assert np.allclose(c[["c_prob", "c_pair", "c_typical", "c_prime"]].sum(axis=1), c["score"])
+    d = r["final_set_details"]
+    assert d["set"].tolist() == list(range(1, len(r["final_sets"]) + 1))
+    for _, row in d.iterrows():
+        assert row["numbers"] == ", ".join(map(str, r["final_sets"][row["set"] - 1]))
+        assert c.loc[row["score_rank"] - 1, "numbers"] == row["numbers"]
+    ho = r["optimization"]["holdout"]
+    assert ho["holdout_folds"] == 40 - int(40 * cfg.tune_ratio)
+
+
+def test_audit_uses_holdout_and_flags_worse_than_baseline():
+    res = {
+        "optimization": {"tune_edge_nats": 0.01, "weights": {"a": 0.5, "b": 0.5},
+                         "holdout": {"edge_nats": -0.02, "edge_ci95": [-0.04, -0.01], "hits_p_one_sided": 0.9,
+                                     "hits_p_two_sided": 0.2, "ensemble_minus_equal_edge_ci95": [-0.05, -0.01]}},
+        "final_sets": [[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12]],
+    }
+    a = statistical_audit(res, AppConfig())
+    assert a["verdict"] == "no_evidence_of_edge"
+    assert a["holdout_hits_p_two_sided"] == 0.2
+    assert any("균등 가중치 기준선보다" in f for f in a["risk_flags"])

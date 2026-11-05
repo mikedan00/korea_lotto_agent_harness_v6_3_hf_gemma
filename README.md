@@ -6,7 +6,7 @@ AI 모델은 **Hugging Face Router**(Streamlit Cloud/로컬) 또는 **Claude Cod
 
 > ⚠️ 공정추첨에서 모든 6개 조합의 1등 확률은 1/8,145,060 으로 동일합니다. 이 프로젝트는 "예측률을 높였다"고 주장하지 않고,
 > 각 전략이 **무작위 대비 우위가 있는지 정직하게 측정**합니다. 1~1224회 데이터 기준 현재 판정은 `no_evidence_of_edge`
-> (holdout edge ≤ 0, 앙상블 적중 p≈0.87)이며, 이 경우 시스템은 신호를 자동으로 수축합니다.
+> (holdout edge −0.049, 95% CI −0.077~−0.019, holdout 적중 단측 p=0.97)이며, 이 경우 시스템은 신호를 자동으로 수축합니다.
 
 ## v7.0 핵심
 
@@ -14,7 +14,7 @@ AI 모델은 **Hugging Face Router**(Streamlit Cloud/로컬) 또는 **Claude Cod
 |---|---|
 | 전략 14개 | long_frequency, recent_decay, gap, hot_cold, momentum, bayes, pair_affinity, prime_factor, anti_crowd + **markov_transition, multi_scale_freq, last_digit, zone_balance, bonus_carry** |
 | 최적화 | fold별 점수 캐싱 → 앙상블 확률 `q = softmax(β·Σ w_k z_k)` 의 로그우도 최대화(랜덤 Dirichlet 탐색 + hill-climb, L2 정규화), tune/holdout 분리 검증, holdout 실패 시 β 수축 |
-| 검정 | 전략별 top-6 적중 z-검정(기대 0.8, 초기하분산) + Bonferroni 보정, 로그우도 edge(nats) |
+| 검정 | 전략별 top-6 적중 z-검정(단측·양측, 기대 0.8) + Bonferroni 보정, 로그우도 edge(nats). holdout 전용 평가: 부트스트랩 95% CI, 균등 가중치 기준선과 짝지은 비교 |
 | 후보 생성 | Gumbel top-k 샘플링, 과거 당첨조합 95% 를 포함하는 **학습형 구조 필터**(합계·홀짝·고저·연속·직전중복·AC·구간수·끝수·소수), 확률/pair lift/전형성/소인수 구조 다성분 점수 |
 | 세트 선택 | 점수 + 신규 번호 커버리지 보너스 greedy, 세트 간 overlap 제한 |
 | 감사 | `statistical_audit` (LLM 불필요): 과적합 격차, 유의성, 가중치 집중, 필터 통과율 |
