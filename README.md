@@ -21,7 +21,7 @@ AI 모델은 **Hugging Face Router**(Streamlit Cloud/로컬) 또는 **Claude Cod
 | AI 리뷰 | 분석가(마크다운) → 비평가(JSON verdict/risk_flags) → 자문(JSON 파라미터 제안, 허용범위 클램프) → Streamlit 에서 **"AI 자문 제안 적용 후 재실행"** |
 | 모델 선택 | HF: 프리셋 드롭다운 + 직접입력 + fallback 목록 / Claude CLI: sonnet·opus·haiku·fable 또는 전체 모델 ID |
 
-📘 **실행 방법 & 사용 설명서: [docs/USER_GUIDE.md](docs/USER_GUIDE.md)**  
+📘 **실행 방법 & 사용 설명서: [docs/USER_GUIDE.md](docs/USER_GUIDE.md)** (웹 페이지 버전: `docs/user_guide.html` 을 브라우저로 열기)  
 자세한 알고리즘: [docs/V7_ALGORITHMS.md](docs/V7_ALGORITHMS.md)
 
 ## 1. 로컬 노트북 (VS Code)
